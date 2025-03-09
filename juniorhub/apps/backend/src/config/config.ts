@@ -1,5 +1,5 @@
 import dotenv from 'dotenv';
-
+import ms from 'ms';
 // Load environment variables
 dotenv.config();
 
@@ -13,9 +13,9 @@ const config = {
   
   // JWT configuration
   jwtSecret: process.env.JWT_SECRET || 'juniorhub_secret_key_change_in_production',
-  jwtExpiresIn: process.env.JWT_EXPIRES_IN || '1h',
+  jwtExpiresIn: (process.env.JWT_EXPIRES_IN || '1h') as ms.StringValue,
   jwtRefreshSecret: process.env.JWT_REFRESH_SECRET || 'juniorhub_refresh_secret_key_change_in_production',
-  jwtRefreshExpiresIn: process.env.JWT_REFRESH_EXPIRES_IN || '7d',
+  jwtRefreshExpiresIn: (process.env.JWT_REFRESH_EXPIRES_IN || '7d') as ms.StringValue,
   
   // OAuth configuration
   google: {

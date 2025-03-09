@@ -1,7 +1,7 @@
 import jwt from 'jsonwebtoken';
 import config from '../config/config';
 import { AuthTokens } from '@juniorhub/types';
-
+import ms from 'ms';
 // Define the payload structure for JWT
 interface TokenPayload {
   userId: string;
@@ -14,21 +14,21 @@ interface TokenPayload {
  * @param role - User role to include in JWT payload
  * @returns Object containing access and refresh tokens
  */
-export const generateTokens = (userId: string, role: string): AuthTokens => {
+export const generateTokens = (userId: string, role: string): AuthTokens => { 
   // Generate access token
-  const accessToken = jwt.sign({
-    data:     { userId, role },
-    exp: config.jwtExpiresIn
-  },
-    config.jwtSecret 
-  );
+  const accessToken = jwt.sign(
+    {
+        data: { userId, role },
+    }, 
+    config.jwtSecret, 
+    { expiresIn: ms(config.jwtExpiresIn) });
 
   // Generate refresh token
   const refreshToken = jwt.sign({
     data: { userId },
-    exp: config.jwtRefreshExpiresIn
   },
-    config.jwtRefreshSecret
+    config.jwtRefreshSecret,
+    { expiresIn: ms(config.jwtRefreshExpiresIn) }
   );
 
   return {
@@ -80,8 +80,9 @@ export const refreshAccessToken = (refreshToken: string, role: string): string |
   
   // Generate new access token
   const accessToken = jwt.sign(
-    { data: { userId: decoded.userId, role }, exp: config.jwtExpiresIn },
-    config.jwtSecret
+    { data: { userId: decoded.userId, role } },
+    config.jwtSecret,
+    { expiresIn: ms(config.jwtExpiresIn) }
   );
   
   return accessToken;
