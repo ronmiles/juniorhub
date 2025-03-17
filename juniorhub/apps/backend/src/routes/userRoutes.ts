@@ -1,18 +1,16 @@
 import express from 'express';
 import { body } from 'express-validator';
 import { authenticate, authorize, authorizeOwn } from '../middleware/auth';
+import { 
+  getUsers, 
+  getUserById, 
+  updateUser, 
+  deleteUser,
+  getUserProjects,
+  getUserApplications
+} from '../controllers/userController';
 
 const router = express.Router();
-
-// Note: We'll implement these controllers later
-// import { 
-//   getUsers, 
-//   getUserById, 
-//   updateUser, 
-//   deleteUser,
-//   getUserProjects,
-//   getUserApplications
-// } from '../controllers/userController';
 
 /**
  * @swagger
@@ -56,7 +54,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.get('/', authenticate, authorize(['admin']));
+router.get('/', authenticate, authorize(['admin']), getUsers);
 
 /**
  * @swagger
@@ -79,7 +77,7 @@ router.get('/', authenticate, authorize(['admin']));
  *       500:
  *         description: Server error
  */
-router.get('/:id');
+router.get('/:id', getUserById);
 
 /**
  * @swagger
@@ -139,7 +137,8 @@ router.put(
       .optional()
       .isURL()
       .withMessage('Profile picture must be a valid URL'),
-  ]
+  ],
+  updateUser
 );
 
 /**
@@ -169,7 +168,7 @@ router.put(
  *       500:
  *         description: Server error
  */
-router.delete('/:id', authenticate, authorize(['admin']));
+router.delete('/:id', authenticate, authorize(['admin']), deleteUser);
 
 /**
  * @swagger
@@ -192,7 +191,7 @@ router.delete('/:id', authenticate, authorize(['admin']));
  *       500:
  *         description: Server error
  */
-router.get('/:id/projects');
+router.get('/:id/projects', getUserProjects);
 
 /**
  * @swagger
@@ -221,6 +220,6 @@ router.get('/:id/projects');
  *       500:
  *         description: Server error
  */
-router.get('/:id/applications', authenticate, authorizeOwn);
+router.get('/:id/applications', authenticate, authorizeOwn, getUserApplications);
 
 export default router; 

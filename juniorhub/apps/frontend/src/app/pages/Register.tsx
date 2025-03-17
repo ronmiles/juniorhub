@@ -1,13 +1,89 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
 
+declare global {
+  interface Window {
+    google?: {
+      accounts: {
+        id: {
+          initialize: (config: any) => void;
+          renderButton: (element: HTMLElement, config: any) => void;
+          prompt: () => void;
+        };
+      };
+    };
+  }
+}
+
 const Register = () => {
-  const { register, error } = useAuth();
+  const { register, googleLogin, error } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [googleLoaded, setGoogleLoaded] = useState(false);
   const navigate = useNavigate();
+
+  // Load Google API
+  useEffect(() => {
+    const loadGoogleScript = () => {
+      // Load the Google API script
+      const script = document.createElement('script');
+      script.src = 'https://accounts.google.com/gsi/client';
+      script.async = true;
+      script.defer = true;
+      script.onload = () => setGoogleLoaded(true);
+      document.body.appendChild(script);
+    };
+
+    loadGoogleScript();
+
+    return () => {
+      // Cleanup if needed
+      const scriptTag = document.querySelector('script[src="https://accounts.google.com/gsi/client"]');
+      if (scriptTag) {
+        scriptTag.remove();
+      }
+    };
+  }, []);
+
+  // Initialize Google Sign-In
+  useEffect(() => {
+    if (googleLoaded && window.google) {
+      window.google.accounts.id.initialize({
+        client_id: import.meta.env.VITE_GOOGLE_CLIENT_ID || '',
+        callback: handleGoogleCallback,
+      });
+      
+      // Render the button
+      const buttonElement = document.getElementById('google-signin-button');
+      if (buttonElement) {
+        window.google.accounts.id.renderButton(buttonElement, {
+          type: 'standard',
+          theme: 'outline',
+          size: 'large',
+          text: 'signup_with',
+          shape: 'rectangular',
+          width: 250
+        });
+      }
+    }
+  }, [googleLoaded]);
+
+  // Handle Google Sign-In response
+  const handleGoogleCallback = async (response: any) => {
+    if (response.credential) {
+      setIsSubmitting(true);
+      try {
+        await googleLogin(response.credential);
+        navigate('/dashboard');
+      } catch (err) {
+        // Error is handled by useAuth hook
+      } finally {
+        setIsSubmitting(false);
+      }
+    }
+  };
 
   // Form validation schema
   const validationSchema = Yup.object({
@@ -249,14 +325,23 @@ const Register = () => {
         
         <div className="mt-6 grid grid-cols-2 gap-3">
           <div>
-            <a
-              href="#"
-              className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
-            >
-              <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
-                <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
-              </svg>
-            </a>
+            {googleLoaded && window.google ? (
+              <div id="google-signin-button" className="w-full flex justify-center"></div>
+            ) : (
+              <button 
+                onClick={() => {
+                  if (window.google) {
+                    window.google.accounts.id.prompt();
+                  }
+                }}
+                className="w-full inline-flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-500 hover:bg-gray-50"
+              >
+                <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                  <path d="M12.48 10.92v3.28h7.84c-.24 1.84-.853 3.187-1.787 4.133-1.147 1.147-2.933 2.4-6.053 2.4-4.827 0-8.6-3.893-8.6-8.72s3.773-8.72 8.6-8.72c2.6 0 4.507 1.027 5.907 2.347l2.307-2.307C18.747 1.44 16.133 0 12.48 0 5.867 0 .307 5.387.307 12s5.56 12 12.173 12c3.573 0 6.267-1.173 8.373-3.36 2.16-2.16 2.84-5.213 2.84-7.667 0-.76-.053-1.467-.173-2.053H12.48z" />
+                </svg>
+                <span className="ml-2">Sign up with Google</span>
+              </button>
+            )}
           </div>
           
           <div>

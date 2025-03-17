@@ -7,6 +7,7 @@ interface AuthContextType {
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
   register: (name: string, email: string, password: string, role: 'junior' | 'company') => Promise<void>;
+  googleLogin: (token: string) => Promise<void>;
   logout: () => void;
   error: string | null;
 }
@@ -158,6 +159,38 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     }
   };
 
+  // Google login function
+  const googleLogin = async (token: string) => {
+    setIsLoading(true);
+    setError(null);
+    
+    try {
+      const response = await axios.post(`${API_URL}/auth/google`, {
+        token,
+      });
+      
+      if (response.data.success) {
+        const { user, tokens } = response.data.data;
+        
+        // Save tokens
+        localStorage.setItem('accessToken', tokens.accessToken);
+        localStorage.setItem('refreshToken', tokens.refreshToken);
+        
+        // Set default Authorization header
+        axios.defaults.headers.common['Authorization'] = `Bearer ${tokens.accessToken}`;
+        
+        // Set user
+        setUser(user);
+      } else {
+        setError(response.data.error || 'Google login failed');
+      }
+    } catch (err: any) {
+      setError(err.response?.data?.error || 'Google login failed');
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
   // Logout function
   const logout = async () => {
     try {
@@ -179,6 +212,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     isLoading,
     login,
     register,
+    googleLogin,
     logout,
     error,
   };

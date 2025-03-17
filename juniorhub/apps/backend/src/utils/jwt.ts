@@ -1,4 +1,4 @@
-import jwt from 'jsonwebtoken';
+import jwt, { Secret } from 'jsonwebtoken';
 import config from '../config/config';
 import { AuthTokens } from '@juniorhub/types';
 import ms from 'ms';
@@ -17,18 +17,16 @@ interface TokenPayload {
 export const generateTokens = (userId: string, role: string): AuthTokens => { 
   // Generate access token
   const accessToken = jwt.sign(
-    {
-        data: { userId, role },
-    }, 
-    config.jwtSecret, 
-    { expiresIn: ms(config.jwtExpiresIn) });
+    { userId, role },
+    config.jwtSecret as Secret,
+    { expiresIn: config.jwtExpiresIn }
+  );
 
   // Generate refresh token
-  const refreshToken = jwt.sign({
-    data: { userId },
-  },
-    config.jwtRefreshSecret,
-    { expiresIn: ms(config.jwtRefreshExpiresIn) }
+  const refreshToken = jwt.sign(
+    { userId },
+    config.jwtRefreshSecret as Secret,
+    { expiresIn: config.jwtRefreshExpiresIn }
   );
 
   return {
@@ -44,7 +42,7 @@ export const generateTokens = (userId: string, role: string): AuthTokens => {
  */
 export const verifyAccessToken = (token: string): TokenPayload | null => {
   try {
-    const decoded = jwt.verify(token, config.jwtSecret) as TokenPayload;
+    const decoded = jwt.verify(token, config.jwtSecret as Secret) as TokenPayload;
     return decoded;
   } catch (error) {
     return null;
@@ -58,7 +56,7 @@ export const verifyAccessToken = (token: string): TokenPayload | null => {
  */
 export const verifyRefreshToken = (token: string): { userId: string } | null => {
   try {
-    const decoded = jwt.verify(token, config.jwtRefreshSecret) as { userId: string };
+    const decoded = jwt.verify(token, config.jwtRefreshSecret as Secret) as { userId: string };
     return decoded;
   } catch (error) {
     return null;
@@ -80,9 +78,9 @@ export const refreshAccessToken = (refreshToken: string, role: string): string |
   
   // Generate new access token
   const accessToken = jwt.sign(
-    { data: { userId: decoded.userId, role } },
-    config.jwtSecret,
-    { expiresIn: ms(config.jwtExpiresIn) }
+    { userId: decoded.userId, role },
+    config.jwtSecret as Secret,
+    { expiresIn: config.jwtExpiresIn }
   );
   
   return accessToken;

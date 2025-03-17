@@ -1,12 +1,13 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt';
 
-// Extend Express Request type to include user information
+// Extend Express Request type to include user
 declare global {
   namespace Express {
     interface Request {
       user?: {
         userId: string;
+        id: string; // Add this for backward compatibility
         role: string;
       };
     }
@@ -14,94 +15,103 @@ declare global {
 }
 
 /**
- * Middleware to authenticate requests using JWT
- * @param req - Express request object
- * @param res - Express response object
- * @param next - Express next function
+ * Authentication middleware
  */
-export const authenticate = (req: Request, res: Response, next: NextFunction): void => {
-  // Get token from authorization header
+export const authenticate = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  // Get token from header
   const authHeader = req.headers.authorization;
-  const token = authHeader && authHeader.split(' ')[1]; // Bearer [token]
-
-  if (!token) {
+  
+  if (!authHeader || !authHeader.startsWith('Bearer ')) {
     res.status(401).json({
       success: false,
-      error: 'Access denied. No token provided.',
+      error: 'No token, authorization denied',
     });
     return;
   }
-
+  
   // Verify token
+  const token = authHeader.split(' ')[1];
   const decoded = verifyAccessToken(token);
+  
   if (!decoded) {
     res.status(401).json({
       success: false,
-      error: 'Invalid or expired token.',
+      error: 'Token is not valid',
     });
     return;
   }
-
-  // Attach user info to request
+  
+  // Set user data in request
   req.user = {
     userId: decoded.userId,
+    id: decoded.userId, // Set id to be the same as userId for compatibility
     role: decoded.role,
   };
-
+  
   next();
 };
 
 /**
- * Middleware to restrict routes based on user roles
- * @param allowedRoles - Array of roles that are allowed to access the route
+ * Authorization middleware (role-based)
  */
-export const authorize = (allowedRoles: string[]) => {
+export const authorize = (roles: string[]) => {
   return (req: Request, res: Response, next: NextFunction): void => {
     if (!req.user) {
       res.status(401).json({
         success: false,
-        error: 'Authentication required.',
+        error: 'Not authenticated',
       });
       return;
     }
-
-    if (!allowedRoles.includes(req.user.role)) {
+    
+    if (!roles.includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        error: 'You are not authorized to access this resource.',
+        error: 'Not authorized to access this resource',
       });
       return;
     }
-
+    
     next();
   };
 };
 
 /**
- * Middleware to authorize only the own user (for user-specific routes)
- * @param req - Express request object
- * @param res - Express response object
- * @param next - Express next function
+ * Authorization middleware for own resources (user can only access their own resources)
  */
-export const authorizeOwn = (req: Request, res: Response, next: NextFunction): void => {
+export const authorizeOwn = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
   if (!req.user) {
     res.status(401).json({
       success: false,
-      error: 'Authentication required.',
+      error: 'Not authenticated',
     });
     return;
   }
-
-  // Check if the requested user ID matches the authenticated user's ID
-  const requestedUserId = req.params.userId || req.params.id;
   
-  if (requestedUserId && req.user.userId !== requestedUserId && req.user.role !== 'admin') {
+  // Allow admin to access any resource
+  if (req.user.role === 'admin') {
+    next();
+    return;
+  }
+  
+  // Check if user is accessing their own resource
+  const resourceId = req.params.id;
+  
+  if (resourceId !== req.user.userId) {
     res.status(403).json({
       success: false,
-      error: 'You are not authorized to access this resource.',
+      error: 'Not authorized to access this resource',
     });
     return;
   }
-
+  
   next();
 }; 

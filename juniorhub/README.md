@@ -64,6 +64,21 @@ cp .env.example .env
 
 Edit the `.env` file with your configuration.
 
+### Setting up OAuth
+
+1. For Google authentication:
+   - Go to the [Google Cloud Console](https://console.cloud.google.com/)
+   - Create a new project or select an existing one
+   - Navigate to "APIs & Services" > "Credentials"
+   - Click "Create Credentials" > "OAuth client ID"
+   - Select "Web application" as the application type
+   - Add authorized JavaScript origins (e.g., `http://localhost:4200`)
+   - Add authorized redirect URIs (e.g., `http://localhost:3000/api/auth/google/callback`)
+   - Copy the Client ID and Client Secret
+   - Add these values to both `.env` files:
+     - Root `.env`: `GOOGLE_CLIENT_ID` and `GOOGLE_CLIENT_SECRET`
+     - Frontend `.env`: `VITE_GOOGLE_CLIENT_ID` (same as the Client ID above)
+
 4. Start MongoDB using Docker:
 
 ```bash

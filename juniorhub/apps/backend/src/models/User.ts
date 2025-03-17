@@ -94,8 +94,8 @@ const UserSchema = new Schema<UserDocument>(
 UserSchema.pre('save', async function (next) {
   const user = this;
 
-  // Only hash the password if it has been modified or is new
-  if (!user.isModified('password')) return next();
+  // Only hash the password if it has been modified or is new AND if it exists
+  if (!user.isModified('password') || !user.password) return next();
 
   try {
     // Generate salt
