@@ -23,16 +23,17 @@ const Dashboard = () => {
           // Fetch company projects
           const projectsResponse = await axios.get(`${API_URL}/users/${user.id}/projects`);
           if (projectsResponse.data.success) {
-            setProjects(projectsResponse.data.data.projects);
+            setProjects(projectsResponse.data.data.projects || []);
           }
         } else if (user?.role === 'junior') {
           // Fetch junior's applications
           const applicationsResponse = await axios.get(`${API_URL}/users/${user.id}/applications`);
           if (applicationsResponse.data.success) {
-            setApplications(applicationsResponse.data.data.applications);
+            setApplications(applicationsResponse.data.data.applications || []);
           }
         }
       } catch (err: any) {
+        console.error('Dashboard fetch error:', err);
         setError(err.response?.data?.error || 'Failed to load dashboard data');
       } finally {
         setIsLoading(false);
@@ -41,6 +42,8 @@ const Dashboard = () => {
     
     if (user) {
       fetchData();
+    } else {
+      setIsLoading(false);
     }
   }, [user]);
 

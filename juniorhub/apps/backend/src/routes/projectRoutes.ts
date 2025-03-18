@@ -6,8 +6,8 @@ import {
   createProject,
   updateProject,
   deleteProject,
-  applyToProject,
 } from '../controllers/projectsController';
+import { createApplication } from '../controllers/applicationController';
 import { authenticate, authorize } from '../middleware/auth';
 
 const router = express.Router();
@@ -318,8 +318,8 @@ router.delete('/:id', authenticate, deleteProject);
  *             properties:
  *               coverLetter:
  *                 type: string
- *               submissionLink:
- *                 type: string
+ *                 minLength: 50
+ *                 maxLength: 1000
  *     responses:
  *       201:
  *         description: Application submitted successfully
@@ -328,7 +328,7 @@ router.delete('/:id', authenticate, deleteProject);
  *       401:
  *         description: Not authenticated
  *       403:
- *         description: Not authorized
+ *         description: Not authorized (must be 'junior' role)
  *       404:
  *         description: Project not found
  *       500:
@@ -340,16 +340,10 @@ router.post(
   authorize(['junior']),
   [
     body('coverLetter')
-      .notEmpty()
-      .withMessage('Cover letter is required')
-      .isLength({ min: 50 })
-      .withMessage('Cover letter must be at least 50 characters long'),
-    body('submissionLink')
-      .optional()
-      .isURL()
-      .withMessage('Submission link must be a valid URL'),
+      .isLength({ min: 50, max: 1000 })
+      .withMessage('Cover letter must be between 50 and 1000 characters'),
   ],
-  applyToProject
+  createApplication
 );
 
 export default router; 

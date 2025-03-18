@@ -9,19 +9,26 @@ import morgan from 'morgan';
 import { json, urlencoded } from 'body-parser';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
+import http from 'http';
 import connectDB from './config/db';
 import config from './config/config';
+import { initSocketServer } from './utils/socket';
 
 // Import routes (we'll create these files next)
 import authRoutes from './routes/authRoutes';
 import projectRoutes from './routes/projectRoutes';
 import userRoutes from './routes/userRoutes';
 import applicationRoutes from './routes/applicationRoutes';
+import notificationRoutes from './routes/notificationRoutes';
 
 // Connect to MongoDB
 connectDB();
 
 const app = express();
+const server = http.createServer(app);
+
+// Initialize Socket.IO
+initSocketServer(server);
 
 // Middleware
 app.use(cors({
@@ -59,6 +66,7 @@ app.use('/api/auth', authRoutes);
 app.use('/api/projects', projectRoutes);
 app.use('/api/users', userRoutes);
 app.use('/api/applications', applicationRoutes);
+app.use('/api/notifications', notificationRoutes);
 
 // Health check route
 app.get('/health', (req, res) => {
@@ -76,6 +84,6 @@ app.use((err, req, res, next) => {
 
 // Start server
 const port = config.port;
-app.listen(port, () => {
+server.listen(port, () => {
   console.log(`Server running on port ${port}`);
 });

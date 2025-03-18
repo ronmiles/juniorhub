@@ -1,16 +1,15 @@
 import express from 'express';
 import { body } from 'express-validator';
 import { authenticate, authorize } from '../middleware/auth';
+import {
+  getApplications,
+  getApplicationById,
+  updateApplication,
+  deleteApplication,
+  submitWork
+} from '../controllers/applicationController';
 
 const router = express.Router();
-
-// Note: We'll implement these controllers later
-// import {
-//   getApplications,
-//   getApplicationById,
-//   updateApplication,
-//   deleteApplication,
-// } from '../controllers/applicationController';
 
 /**
  * @swagger
@@ -59,7 +58,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.get('/', authenticate, authorize(['admin']));
+router.get('/', authenticate, authorize(['admin']), getApplications);
 
 /**
  * @swagger
@@ -88,7 +87,7 @@ router.get('/', authenticate, authorize(['admin']));
  *       500:
  *         description: Server error
  */
-router.get('/:id', authenticate);
+router.get('/:id', authenticate, getApplicationById);
 
 /**
  * @swagger
@@ -141,7 +140,8 @@ router.put(
       .isIn(['pending', 'accepted', 'rejected'])
       .withMessage('Status must be pending, accepted, or rejected'),
     body('feedback').optional(),
-  ]
+  ],
+  updateApplication
 );
 
 /**
@@ -171,6 +171,58 @@ router.put(
  *       500:
  *         description: Server error
  */
-router.delete('/:id', authenticate, authorize(['admin']));
+router.delete('/:id', authenticate, authorize(['admin']), deleteApplication);
+
+/**
+ * @swagger
+ * /api/applications/{id}/submit:
+ *   put:
+ *     summary: Submit work link for an accepted application
+ *     tags: [Applications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Application ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - submissionLink
+ *             properties:
+ *               submissionLink:
+ *                 type: string
+ *                 format: uri
+ *     responses:
+ *       200:
+ *         description: Work submitted successfully
+ *       400:
+ *         description: Validation error or application not accepted
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: Application not found
+ *       500:
+ *         description: Server error
+ */
+router.put(
+  '/:id/submit',
+  authenticate,
+  [
+    body('submissionLink')
+      .isURL()
+      .withMessage('Submission link must be a valid URL'),
+  ],
+  submitWork
+);
 
 export default router; 

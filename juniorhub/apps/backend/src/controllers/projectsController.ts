@@ -398,8 +398,8 @@ export const applyToProject = async (req: Request, res: Response): Promise<void>
     
     await application.save();
     
-    // Update project's applicants
-    project.applicants = [...(project.applicants || []), new mongoose.Types.ObjectId(req.user.userId)];
+    // Update project's applications
+    project.applications = [...(project.applications || []), new mongoose.Types.ObjectId(req.user.userId)];
     await project.save();
     
     // Update user's applications

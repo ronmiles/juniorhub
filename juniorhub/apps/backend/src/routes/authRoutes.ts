@@ -1,6 +1,7 @@
 import express from 'express';
 import { body } from 'express-validator';
 import { register, login, refreshToken, logout, getCurrentUser } from '../controllers/authController';
+import { googleAuth, facebookAuth } from '../controllers/oauthController';
 import { authenticate } from '../middleware/auth';
 
 const router = express.Router();
@@ -164,5 +165,62 @@ router.post('/logout', authenticate, logout);
  *         description: Server error
  */
 router.get('/me', authenticate, getCurrentUser);
+
+// OAuth routes
+/**
+ * @swagger
+ * /api/auth/google:
+ *   post:
+ *     summary: Authenticate with Google
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - token
+ *             properties:
+ *               token:
+ *                 type: string
+ *                 description: Google ID token
+ *     responses:
+ *       200:
+ *         description: Authentication successful
+ *       400:
+ *         description: Invalid token
+ *       500:
+ *         description: Server error
+ */
+router.post('/google', googleAuth);
+
+/**
+ * @swagger
+ * /api/auth/facebook:
+ *   post:
+ *     summary: Authenticate with Facebook
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - accessToken
+ *             properties:
+ *               accessToken:
+ *                 type: string
+ *                 description: Facebook access token
+ *     responses:
+ *       200:
+ *         description: Authentication successful
+ *       400:
+ *         description: Invalid token
+ *       500:
+ *         description: Server error
+ */
+router.post('/facebook', facebookAuth);
 
 export default router; 
