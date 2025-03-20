@@ -10,9 +10,11 @@ import { json, urlencoded } from 'body-parser';
 import swaggerUi from 'swagger-ui-express';
 import swaggerJsdoc from 'swagger-jsdoc';
 import http from 'http';
+import passport from 'passport';
 import connectDB from './config/db';
 import config from './config/config';
 import { initSocketServer } from './utils/socket';
+import './config/passport'; // Import passport config to initialize strategies
 
 // Import routes (we'll create these files next)
 import authRoutes from './routes/authRoutes';
@@ -39,6 +41,9 @@ app.use(morgan('dev'));
 app.use(json());
 app.use(urlencoded({ extended: true }));
 
+// Initialize Passport
+app.use(passport.initialize());
+
 // Swagger documentation setup
 const swaggerOptions = {
   definition: {
@@ -52,6 +57,20 @@ const swaggerOptions = {
       {
         url: `http://localhost:${config.port}`,
         description: 'Development server',
+      },
+    ],
+    components: {
+      securitySchemes: {
+        bearerAuth: {
+          type: 'http',
+          scheme: 'bearer',
+          bearerFormat: 'JWT',
+        },
+      },
+    },
+    security: [
+      {
+        bearerAuth: [],
       },
     ],
   },

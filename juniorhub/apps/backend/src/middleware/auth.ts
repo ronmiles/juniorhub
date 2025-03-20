@@ -1,16 +1,30 @@
 import { Request, Response, NextFunction } from 'express';
 import { verifyAccessToken } from '../utils/jwt';
 
-// Extend Express Request type to include user
+// Define our AuthUser interface
+interface AuthUser {
+  userId: string;
+  id: string;
+  role: string;
+  needsRoleSelection?: boolean;
+  googleProfile?: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+  };
+  facebookProfile?: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+  };
+}
+
+// Extend Express Request type to include our custom user
 declare global {
   namespace Express {
-    interface Request {
-      user?: {
-        userId: string;
-        id: string; // Add this for backward compatibility
-        role: string;
-      };
-    }
+    interface User extends AuthUser {}
   }
 }
 
@@ -78,6 +92,62 @@ export const authorize = (roles: string[]) => {
     
     next();
   };
+};
+
+/**
+ * Junior-only route middleware
+ */
+export const juniorOnly = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      error: 'Not authenticated',
+    });
+    return;
+  }
+  
+  // Check if user is a junior
+  if (req.user.role !== 'junior') {
+    res.status(403).json({
+      success: false,
+      error: 'This resource is only available to junior developers',
+    });
+    return;
+  }
+  
+  next();
+};
+
+/**
+ * Company-only route middleware
+ */
+export const companyOnly = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  if (!req.user) {
+    res.status(401).json({
+      success: false,
+      error: 'Not authenticated',
+    });
+    return;
+  }
+  
+  // Check if user is a company
+  if (req.user.role !== 'company') {
+    res.status(403).json({
+      success: false,
+      error: 'This resource is only available to companies',
+    });
+    return;
+  }
+  
+  next();
 };
 
 /**

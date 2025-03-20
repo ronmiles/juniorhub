@@ -9,11 +9,19 @@ type MongooseUser = Omit<UserType, 'id' | 'projects' | 'applications'> & {
   googleId?: string;
   facebookId?: string;
   refreshToken?: string;
+  // Junior specific fields
+  portfolio?: string[];
+  experienceLevel?: 'beginner' | 'intermediate' | 'advanced';
+  // Company specific fields
+  companyName?: string;
+  website?: string;
+  industry?: string;
 };
 
 // Create the document interface
 export interface UserDocument extends MongooseUser, Document {
   comparePassword(candidatePassword: string): Promise<boolean>;
+  password?: string; // Add password to interface to fix TypeScript errors
 }
 
 const UserSchema = new Schema<UserDocument>(
@@ -83,6 +91,56 @@ const UserSchema = new Schema<UserDocument>(
     refreshToken: {
       type: String,
       select: false, // Don't return refreshToken by default
+    },
+    // Junior specific fields
+    portfolio: {
+      type: [String],
+      default: [],
+      validate: {
+        validator: function(this: UserDocument) {
+          return this.role !== 'junior' || (this.portfolio ? true : false);
+        },
+        message: 'Portfolio should be an array of URLs'
+      }
+    },
+    experienceLevel: {
+      type: String,
+      enum: ['beginner', 'intermediate', 'advanced'],
+      validate: {
+        validator: function(this: UserDocument) {
+          return this.role !== 'junior' || (this.experienceLevel ? true : false);
+        },
+        message: 'Experience level is required for junior users'
+      }
+    },
+    // Company specific fields
+    companyName: {
+      type: String,
+      validate: {
+        validator: function(this: UserDocument) {
+          return this.role !== 'company' || (this.companyName ? true : false);
+        },
+        message: 'Company name is required for company users'
+      }
+    },
+    website: {
+      type: String,
+      validate: {
+        validator: function(this: UserDocument, v: string) {
+          if (!v || this.role !== 'company') return true;
+          return /^(https?:\/\/)([\da-z.-]+)\.([a-z.]{2,6})([/\w.-]*)*\/?$/.test(v);
+        },
+        message: 'Please provide a valid website URL'
+      }
+    },
+    industry: {
+      type: String,
+      validate: {
+        validator: function(this: UserDocument) {
+          return this.role !== 'company' || (this.industry ? true : false);
+        },
+        message: 'Industry is required for company users'
+      }
     },
   },
   {

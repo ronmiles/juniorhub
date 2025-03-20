@@ -1,6 +1,6 @@
 import express from 'express';
 import { body } from 'express-validator';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, juniorOnly, companyOnly } from '../middleware/auth';
 import {
   getApplications,
   getApplicationById,
@@ -15,7 +15,7 @@ const router = express.Router();
  * @swagger
  * /api/applications:
  *   get:
- *     summary: Get all applications (admin only)
+ *     summary: Get applications for the authenticated user
  *     tags: [Applications]
  *     security:
  *       - bearerAuth: []
@@ -32,11 +32,6 @@ const router = express.Router();
  *           type: string
  *         description: Filter by project ID
  *       - in: query
- *         name: applicant
- *         schema:
- *           type: string
- *         description: Filter by applicant ID
- *       - in: query
  *         name: page
  *         schema:
  *           type: integer
@@ -51,20 +46,39 @@ const router = express.Router();
  *     responses:
  *       200:
  *         description: List of applications
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     applications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Application'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         pages:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
  */
-router.get('/', authenticate, authorize(['admin']), getApplications);
+router.get('/', authenticate, getApplications);
 
 /**
  * @swagger
  * /api/applications/{id}:
  *   get:
- *     summary: Get application by ID
+ *     summary: Get an application by ID
  *     tags: [Applications]
  *     security:
  *       - bearerAuth: []
@@ -78,14 +92,18 @@ router.get('/', authenticate, authorize(['admin']), getApplications);
  *     responses:
  *       200:
  *         description: Application details
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Application not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     application:
+ *                       $ref: '#/components/schemas/Application'
  */
 router.get('/:id', authenticate, getApplicationById);
 
@@ -93,7 +111,7 @@ router.get('/:id', authenticate, getApplicationById);
  * @swagger
  * /api/applications/{id}:
  *   put:
- *     summary: Update application status (company only)
+ *     summary: Update an application (company can change status, junior can withdraw)
  *     tags: [Applications]
  *     security:
  *       - bearerAuth: []
@@ -110,8 +128,6 @@ router.get('/:id', authenticate, getApplicationById);
  *         application/json:
  *           schema:
  *             type: object
- *             required:
- *               - status
  *             properties:
  *               status:
  *                 type: string
@@ -121,25 +137,28 @@ router.get('/:id', authenticate, getApplicationById);
  *     responses:
  *       200:
  *         description: Application updated successfully
- *       400:
- *         description: Validation error
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Application not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     application:
+ *                       $ref: '#/components/schemas/Application'
  */
 router.put(
   '/:id',
   authenticate,
   [
     body('status')
+      .optional()
       .isIn(['pending', 'accepted', 'rejected'])
-      .withMessage('Status must be pending, accepted, or rejected'),
-    body('feedback').optional(),
+      .withMessage('Invalid status value'),
+    body('feedback').optional().trim(),
   ],
   updateApplication
 );
@@ -148,7 +167,7 @@ router.put(
  * @swagger
  * /api/applications/{id}:
  *   delete:
- *     summary: Delete application (admin only)
+ *     summary: Delete an application (withdraw application)
  *     tags: [Applications]
  *     security:
  *       - bearerAuth: []
@@ -162,22 +181,23 @@ router.put(
  *     responses:
  *       200:
  *         description: Application deleted successfully
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Application not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
  */
-router.delete('/:id', authenticate, authorize(['admin']), deleteApplication);
+router.delete('/:id', authenticate, juniorOnly, deleteApplication);
 
 /**
  * @swagger
  * /api/applications/{id}/submit:
- *   put:
- *     summary: Submit work link for an accepted application
+ *   post:
+ *     summary: Submit work for an accepted application
  *     tags: [Applications]
  *     security:
  *       - bearerAuth: []
@@ -203,20 +223,23 @@ router.delete('/:id', authenticate, authorize(['admin']), deleteApplication);
  *     responses:
  *       200:
  *         description: Work submitted successfully
- *       400:
- *         description: Validation error or application not accepted
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Application not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     application:
+ *                       $ref: '#/components/schemas/Application'
  */
-router.put(
+router.post(
   '/:id/submit',
   authenticate,
+  juniorOnly,
   [
     body('submissionLink')
       .isURL()

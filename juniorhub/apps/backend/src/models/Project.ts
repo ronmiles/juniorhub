@@ -1,9 +1,10 @@
 import mongoose, { Document, Schema } from 'mongoose';
 import { Project as ProjectType } from '@juniorhub/types';
+import User from './User';
 
 // Define MongoDB schema-specific types (replacing string IDs with ObjectIds)
-type MongooseProject = Omit<ProjectType, 'id' | 'owner' | 'applications' | 'selectedDeveloper'> & {
-  owner: mongoose.Types.ObjectId;
+type MongooseProject = Omit<ProjectType, 'id' | 'company' | 'applications' | 'selectedDeveloper'> & {
+  company: mongoose.Types.ObjectId;
   applications?: mongoose.Types.ObjectId[];
   selectedDeveloper?: mongoose.Types.ObjectId;
   isAcceptingApplications: boolean;
@@ -23,10 +24,18 @@ const ProjectSchema = new Schema<ProjectDocument>(
       type: String,
       required: [true, 'Description is required'],
     },
-    owner: {
+    company: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
-      required: [true, 'Owner is required'],
+      required: [true, 'Company is required'],
+      validate: {
+        validator: async function(this: ProjectDocument, value: mongoose.Types.ObjectId) {
+          // Ensure the company is a company user
+          const company = await User.findById(value);
+          return company?.role === 'company' || company?.role === 'admin';
+        },
+        message: 'Only company users can own projects'
+      }
     },
     requirements: {
       type: [String],
@@ -66,6 +75,15 @@ const ProjectSchema = new Schema<ProjectDocument>(
     selectedDeveloper: {
       type: mongoose.Schema.Types.ObjectId,
       ref: 'User',
+      validate: {
+        validator: async function(this: ProjectDocument, value: mongoose.Types.ObjectId) {
+          if (!value) return true; // Allow null/undefined
+          // Ensure the selected developer is a junior user
+          const developer = await User.findById(value);
+          return developer?.role === 'junior';
+        },
+        message: 'Only junior users can be selected as developers'
+      }
     },
     tags: {
       type: [String],

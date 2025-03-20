@@ -10,6 +10,7 @@ interface AuthContextType {
   googleLogin: (token: string) => Promise<void>;
   logout: () => void;
   error: string | null;
+  setUser: (user: User) => void;
 }
 
 const AuthContext = createContext<AuthContextType | undefined>(undefined);
@@ -215,6 +216,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
     googleLogin,
     logout,
     error,
+    setUser
   };
 
   return <AuthContext.Provider value={value}>{children}</AuthContext.Provider>;

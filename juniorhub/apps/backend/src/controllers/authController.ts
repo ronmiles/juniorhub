@@ -22,7 +22,46 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, email, password, role } = req.body;
+    const { 
+      name, 
+      email, 
+      password, 
+      role,
+      // Junior specific fields
+      portfolio,
+      skills,
+      experienceLevel,
+      // Company specific fields
+      companyName,
+      website,
+      industry 
+    } = req.body;
+
+    // Validate role
+    if (!['junior', 'company'].includes(role)) {
+      res.status(400).json({
+        success: false,
+        error: 'Invalid role. Must be either "junior" or "company"',
+      });
+      return;
+    }
+
+    // Validate role-specific required fields
+    if (role === 'junior' && !experienceLevel) {
+      res.status(400).json({
+        success: false,
+        error: 'Experience level is required for junior users',
+      });
+      return;
+    }
+
+    if (role === 'company' && !companyName) {
+      res.status(400).json({
+        success: false,
+        error: 'Company name is required for company users',
+      });
+      return;
+    }
 
     // Check if user already exists
     const existingUser = await User.findOne({ email });
@@ -34,14 +73,26 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    // Create new user
-    const user = new User({
+    // Create new user with role-specific fields
+    const userData: any = {
       name,
       email,
       password,
-      role,
-    });
+      role
+    };
 
+    // Add role-specific fields
+    if (role === 'junior') {
+      userData.portfolio = portfolio || [];
+      userData.skills = skills || [];
+      userData.experienceLevel = experienceLevel;
+    } else if (role === 'company') {
+      userData.companyName = companyName;
+      userData.website = website || '';
+      userData.industry = industry;
+    }
+
+    const user = new User(userData);
     await user.save();
 
     // Generate JWT tokens
@@ -51,16 +102,34 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     user.refreshToken = tokens.refreshToken;
     await user.save();
 
+    // Return success response with role-specific user data
+    const userData2 = {
+      id: user._id,
+      name: user.name,
+      email: user.email,
+      role: user.role,
+    };
+
+    // Add role-specific fields to response
+    if (user.role === 'junior') {
+      Object.assign(userData2, {
+        portfolio: user.portfolio,
+        skills: user.skills,
+        experienceLevel: user.experienceLevel
+      });
+    } else if (user.role === 'company') {
+      Object.assign(userData2, {
+        companyName: user.companyName,
+        website: user.website,
+        industry: user.industry
+      });
+    }
+
     // Return success response
     res.status(201).json({
       success: true,
       data: {
-        user: {
-          id: user._id,
-          name: user.name,
-          email: user.email,
-          role: user.role,
-        },
+        user: userData2,
         tokens,
       },
       message: 'User registered successfully',

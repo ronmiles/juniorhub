@@ -2,6 +2,7 @@ export function types(): string {
   return 'types';
 }
 
+// Base user interface with common fields
 export interface User {
   id: string;
   name: string;
@@ -17,6 +18,21 @@ export interface User {
   updatedAt: Date;
 }
 
+// Junior-specific fields
+export interface JuniorUser extends User {
+  role: 'junior';
+  portfolio?: string[]; // Links to GitHub, portfolio website, etc.
+  experienceLevel: 'beginner' | 'intermediate' | 'advanced';
+}
+
+// Company-specific fields
+export interface CompanyUser extends User {
+  role: 'company';
+  companyName: string;
+  website?: string;
+  industry: string;
+}
+
 export interface Project {
   id: string;
   title: string;
@@ -29,10 +45,11 @@ export interface Project {
   };
   status: 'open' | 'in-progress' | 'completed' | 'canceled';
   skillsRequired: string[];
-  applicants?: string[]; // References to users who applied (IDs)
-  selectedDeveloper?: string; // Reference to selected user (ID)
+  applications?: string[]; // References to applications (IDs)
+  selectedDeveloper?: string; // Reference to selected junior user (ID)
   tags: string[];
   likes: number;
+  isAcceptingApplications: boolean;
   createdAt: Date;
   updatedAt: Date;
 }
@@ -40,7 +57,7 @@ export interface Project {
 export interface Application {
   id: string;
   project: string; // Reference to project (ID)
-  applicant: string; // Reference to user (ID)
+  applicant: string; // Reference to junior user (ID)
   coverLetter: string;
   status: 'pending' | 'accepted' | 'rejected';
   submissionLink?: string; // Link to GitHub repo or other work
@@ -109,6 +126,28 @@ export interface RegisterRequest {
   email: string;
   password: string;
   role: 'junior' | 'company';
+  // Junior specific fields
+  portfolio?: string[];
+  skills?: string[];
+  experienceLevel?: 'beginner' | 'intermediate' | 'advanced';
+  // Company specific fields
+  companyName?: string;
+  website?: string;
+  industry?: string;
+}
+
+export interface OAuthLoginRequest {
+  token?: string; // Google ID token
+  accessToken?: string; // Facebook access token
+  role?: 'junior' | 'company';
+  // Junior specific fields
+  portfolio?: string[];
+  skills?: string[];
+  experienceLevel?: 'beginner' | 'intermediate' | 'advanced';
+  // Company specific fields
+  companyName?: string;
+  website?: string;
+  industry?: string;
 }
 
 export interface CreateProjectRequest {
@@ -134,6 +173,7 @@ export interface UpdateProjectRequest {
   status?: 'open' | 'in-progress' | 'completed' | 'canceled';
   skillsRequired?: string[];
   tags?: string[];
+  isAcceptingApplications?: boolean;
 }
 
 export interface CreateApplicationRequest {
@@ -145,4 +185,8 @@ export interface CreateApplicationRequest {
 export interface UpdateApplicationRequest {
   status?: 'pending' | 'accepted' | 'rejected';
   feedback?: string;
+}
+
+export interface SubmitWorkRequest {
+  submissionLink: string;
 }

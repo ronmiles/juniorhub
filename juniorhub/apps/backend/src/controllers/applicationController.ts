@@ -209,7 +209,7 @@ export const createApplication = async (req: Request, res: Response): Promise<vo
     
     // Get project owner ID
     const projectWithOwner = await Project.findById(projectId);
-    const projectOwnerUser = await User.findById(projectWithOwner.owner);
+    const projectOwnerUser = await User.findById(projectWithOwner.company);
     
     if (projectWithOwner && projectOwnerUser) {
       const ownerId = projectOwnerUser._id.toString();

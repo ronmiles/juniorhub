@@ -1,10 +1,45 @@
-import express from 'express';
-import { body } from 'express-validator';
-import { register, login, refreshToken, logout, getCurrentUser } from '../controllers/authController';
-import { googleAuth, facebookAuth } from '../controllers/oauthController';
+import express, { Router } from 'express';
+import passport from 'passport';
+import { body, validationResult } from 'express-validator';
+import { 
+  register, 
+  login, 
+  refreshToken, 
+  logout, 
+  getCurrentUser 
+} from '../controllers/authController';
+import { 
+  googleAuth, 
+  facebookAuth,
+  completeOAuthSignup 
+} from '../controllers/oauthController';
 import { authenticate } from '../middleware/auth';
+import config from '../config/config';
+import { generateTokens } from '../utils/jwt';
 
-const router = express.Router();
+// Define our AuthUser interface that's used in this file
+interface AuthUser {
+  _id: { toString(): string };
+  email: string;
+  name: string;
+  role?: string;
+  refreshToken?: string;
+  save: () => Promise<any>;
+  googleProfile?: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: string;
+  };
+  facebookProfile?: {
+    id: string;
+    email: string;
+    name: string;
+    picture?: { data?: { url?: string } };
+  };
+}
+
+const router: Router = express.Router();
 
 /**
  * @swagger
@@ -28,21 +63,22 @@ const router = express.Router();
  *                 type: string
  *               email:
  *                 type: string
+ *                 format: email
  *               password:
  *                 type: string
+ *                 format: password
  *               role:
  *                 type: string
  *                 enum: [junior, company]
  *     responses:
  *       201:
- *         description: User registered successfully
+ *         description: User created successfully
  *       400:
- *         description: Validation error or user already exists
- *       500:
- *         description: Server error
+ *         description: Validation error
+ *       409:
+ *         description: Email already in use
  */
-router.post(
-  '/register',
+router.post('/register', 
   [
     body('name').notEmpty().withMessage('Name is required'),
     body('email').isEmail().withMessage('Please include a valid email'),
@@ -51,7 +87,7 @@ router.post(
       .withMessage('Password must be at least 6 characters long'),
     body('role')
       .isIn(['junior', 'company'])
-      .withMessage('Role must be either junior or company'),
+      .withMessage('Role must be either junior or company')
   ],
   register
 );
@@ -74,21 +110,22 @@ router.post(
  *             properties:
  *               email:
  *                 type: string
+ *                 format: email
  *               password:
  *                 type: string
+ *                 format: password
  *     responses:
  *       200:
  *         description: Login successful
  *       400:
- *         description: Validation error or invalid credentials
- *       500:
- *         description: Server error
+ *         description: Validation error
+ *       401:
+ *         description: Invalid credentials
  */
-router.post(
-  '/login',
+router.post('/login', 
   [
     body('email').isEmail().withMessage('Please include a valid email'),
-    body('password').exists().withMessage('Password is required'),
+    body('password').exists().withMessage('Password is required')
   ],
   login
 );
@@ -112,21 +149,11 @@ router.post(
  *                 type: string
  *     responses:
  *       200:
- *         description: Token refreshed successfully
+ *         description: New tokens generated
  *       400:
- *         description: Refresh token is required
- *       401:
- *         description: Invalid or expired refresh token
- *       500:
- *         description: Server error
+ *         description: Invalid refresh token
  */
-router.post(
-  '/refresh-token',
-  [
-    body('refreshToken').notEmpty().withMessage('Refresh token is required'),
-  ],
-  refreshToken
-);
+router.post('/refresh-token', refreshToken);
 
 /**
  * @swagger
@@ -138,11 +165,9 @@ router.post(
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Logged out successfully
+ *         description: Logout successful
  *       401:
- *         description: Not authenticated
- *       500:
- *         description: Server error
+ *         description: Unauthorized
  */
 router.post('/logout', authenticate, logout);
 
@@ -156,22 +181,17 @@ router.post('/logout', authenticate, logout);
  *       - bearerAuth: []
  *     responses:
  *       200:
- *         description: Current user data
+ *         description: User details
  *       401:
- *         description: Not authenticated
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
+ *         description: Unauthorized
  */
 router.get('/me', authenticate, getCurrentUser);
 
-// OAuth routes
 /**
  * @swagger
  * /api/auth/google:
  *   post:
- *     summary: Authenticate with Google
+ *     summary: Authenticate with Google token
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -184,14 +204,14 @@ router.get('/me', authenticate, getCurrentUser);
  *             properties:
  *               token:
  *                 type: string
- *                 description: Google ID token
+ *               role:
+ *                 type: string
+ *                 enum: [junior, company]
  *     responses:
  *       200:
  *         description: Authentication successful
  *       400:
  *         description: Invalid token
- *       500:
- *         description: Server error
  */
 router.post('/google', googleAuth);
 
@@ -199,7 +219,7 @@ router.post('/google', googleAuth);
  * @swagger
  * /api/auth/facebook:
  *   post:
- *     summary: Authenticate with Facebook
+ *     summary: Authenticate with Facebook token
  *     tags: [Auth]
  *     requestBody:
  *       required: true
@@ -208,19 +228,208 @@ router.post('/google', googleAuth);
  *           schema:
  *             type: object
  *             required:
- *               - accessToken
+ *               - token
  *             properties:
- *               accessToken:
+ *               token:
  *                 type: string
- *                 description: Facebook access token
+ *               role:
+ *                 type: string
+ *                 enum: [junior, company]
  *     responses:
  *       200:
  *         description: Authentication successful
  *       400:
  *         description: Invalid token
- *       500:
- *         description: Server error
  */
 router.post('/facebook', facebookAuth);
+
+/**
+ * @swagger
+ * /api/auth/complete-oauth-signup:
+ *   post:
+ *     summary: Complete OAuth signup by selecting role and providing role-specific details
+ *     tags: [Auth]
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - userId
+ *               - provider
+ *               - role
+ *             properties:
+ *               userId:
+ *                 type: string
+ *               provider:
+ *                 type: string
+ *                 enum: [google, facebook]
+ *               role:
+ *                 type: string
+ *                 enum: [junior, company]
+ *               experienceLevel:
+ *                 type: string
+ *               skills:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               portfolio:
+ *                 type: string
+ *               companyName:
+ *                 type: string
+ *               website:
+ *                 type: string
+ *               industry:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: OAuth signup completed successfully
+ *       400:
+ *         description: Invalid data provided
+ *       404:
+ *         description: User not found
+ */
+router.post('/complete-oauth-signup', completeOAuthSignup);
+
+// Configure frontend URLs
+const FRONTEND_URL = config.clientUrl || 'http://localhost:4200';
+const OAUTH_CALLBACK_PATH = '/oauth-callback';
+const LOGIN_PATH = '/login';
+const DASHBOARD_PATH = '/dashboard';
+
+// Google OAuth routes
+router.get('/google',
+  passport.authenticate('google', { 
+    scope: ['profile', 'email'],
+    session: false
+  })
+);
+
+router.get('/google/callback', 
+  passport.authenticate('google', { 
+    session: false,
+    failureRedirect: `${FRONTEND_URL}${LOGIN_PATH}?error=google_auth_failed` 
+  }),
+  (req, res) => {
+    console.log('Google callback received:', req.user);
+
+    // Use type assertion to any first to handle different user object structures
+    const user = req.user as any;
+    
+    // Check if user needs to select a role
+    if (!user.role || user.needsRoleSelection) {
+      // Make sure we have Google data
+      if (!user.googleProfile) {
+        console.log('Missing Google profile data');
+        return res.redirect(`${FRONTEND_URL}${LOGIN_PATH}?error=missing_google_data`);
+      }
+      
+      // Create a structured URL with user data for role selection
+      const params = new URLSearchParams({
+        provider: 'google',
+        userId: user.googleProfile.id, // Use googleProfile.id as userId
+        email: user.googleProfile.email,
+        name: user.googleProfile.name
+      });
+      
+      // Add profile picture if available
+      if (user.googleProfile.picture) {
+        params.append('picture', user.googleProfile.picture);
+      }
+      
+      console.log('Redirecting to OAuth callback with params:', params.toString());
+      return res.redirect(`${FRONTEND_URL}${OAUTH_CALLBACK_PATH}?${params.toString()}`);
+    }
+    
+    // User already has a role, generate tokens
+    const tokens = generateTokens(user.userId || user._id.toString(), user.role);
+    
+    // Save refresh token
+    if (user.save) {
+      user.refreshToken = tokens.refreshToken;
+      user.save().catch((err: any) => console.error('Error saving refresh token:', err));
+    }
+    
+    // Determine dashboard based on role
+    const dashboardUrl = `${FRONTEND_URL}${DASHBOARD_PATH}`;
+    
+    // Include tokens in redirect
+    const redirectParams = new URLSearchParams({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    });
+    
+    console.log('Redirecting authenticated user to dashboard');
+    res.redirect(`${dashboardUrl}?${redirectParams.toString()}`);
+  }
+);
+
+// Facebook OAuth routes
+router.get('/facebook',
+  passport.authenticate('facebook', { 
+    scope: ['email', 'public_profile'],
+    session: false
+  })
+);
+
+router.get('/facebook/callback', 
+  passport.authenticate('facebook', { 
+    session: false,
+    failureRedirect: `${FRONTEND_URL}${LOGIN_PATH}?error=facebook_auth_failed` 
+  }),
+  (req, res) => {
+    console.log('Facebook callback received:', req.user);
+
+    // Use type assertion to any first to handle different user object structures
+    const user = req.user as any;
+    
+    // Check if user needs to select a role
+    if (!user.role || user.needsRoleSelection) {
+      // Make sure we have Facebook data
+      if (!user.facebookProfile) {
+        console.log('Missing Facebook profile data');
+        return res.redirect(`${FRONTEND_URL}${LOGIN_PATH}?error=missing_facebook_data`);
+      }
+      
+      // Create a structured URL with user data for role selection
+      const params = new URLSearchParams({
+        provider: 'facebook',
+        userId: user.facebookProfile.id, // Use facebookProfile.id as userId
+        email: user.facebookProfile.email,
+        name: user.facebookProfile.name
+      });
+      
+      // Add profile picture if available
+      if (user.facebookProfile.picture?.data?.url) {
+        params.append('picture', user.facebookProfile.picture.data.url);
+      }
+      
+      console.log('Redirecting to OAuth callback with params:', params.toString());
+      return res.redirect(`${FRONTEND_URL}${OAUTH_CALLBACK_PATH}?${params.toString()}`);
+    }
+    
+    // User already has a role, generate tokens
+    const tokens = generateTokens(user.userId || user._id.toString(), user.role);
+    
+    // Save refresh token
+    if (user.save) {
+      user.refreshToken = tokens.refreshToken;
+      user.save().catch((err: any) => console.error('Error saving refresh token:', err));
+    }
+    
+    // Determine dashboard based on role
+    const dashboardUrl = `${FRONTEND_URL}${DASHBOARD_PATH}`;
+    
+    // Include tokens in redirect
+    const redirectParams = new URLSearchParams({
+      accessToken: tokens.accessToken,
+      refreshToken: tokens.refreshToken
+    });
+    
+    console.log('Redirecting authenticated user to dashboard');
+    res.redirect(`${dashboardUrl}?${redirectParams.toString()}`);
+  }
+);
 
 export default router; 

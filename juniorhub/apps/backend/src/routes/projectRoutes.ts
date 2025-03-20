@@ -8,7 +8,7 @@ import {
   deleteProject,
 } from '../controllers/projectsController';
 import { createApplication } from '../controllers/applicationController';
-import { authenticate, authorize } from '../middleware/auth';
+import { authenticate, authorize, companyOnly, juniorOnly } from '../middleware/auth';
 
 const router = express.Router();
 
@@ -51,20 +51,37 @@ const router = express.Router();
  *         name: sort
  *         schema:
  *           type: string
- *           default: createdAt
- *         description: Field to sort by
- *       - in: query
- *         name: order
- *         schema:
- *           type: string
- *           enum: [asc, desc]
- *           default: desc
- *         description: Sort order
+ *           enum: [latest, oldest, most-applications]
+ *           default: latest
+ *         description: Sort order for projects
  *     responses:
  *       200:
- *         description: List of projects
- *       500:
- *         description: Server error
+ *         description: List of projects with pagination info
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     projects:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Project'
+ *                     pagination:
+ *                       type: object
+ *                       properties:
+ *                         total:
+ *                           type: integer
+ *                         pages:
+ *                           type: integer
+ *                         page:
+ *                           type: integer
+ *                         limit:
+ *                           type: integer
  */
 router.get('/', getProjects);
 
@@ -84,10 +101,18 @@ router.get('/', getProjects);
  *     responses:
  *       200:
  *         description: Project details
- *       404:
- *         description: Project not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     project:
+ *                       $ref: '#/components/schemas/Project'
  */
 router.get('/:id', getProjectById);
 
@@ -104,56 +129,30 @@ router.get('/:id', getProjectById);
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             required:
- *               - title
- *               - description
- *               - timeframe
- *             properties:
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               requirements:
- *                 type: array
- *                 items:
- *                   type: string
- *               timeframe:
- *                 type: object
- *                 properties:
- *                   startDate:
- *                     type: string
- *                     format: date
- *                   endDate:
- *                     type: string
- *                     format: date
- *               skillsRequired:
- *                 type: array
- *                 items:
- *                   type: string
- *               tags:
- *                 type: array
- *                 items:
- *                   type: string
+ *             $ref: '#/components/schemas/CreateProjectRequest'
  *     responses:
  *       201:
  *         description: Project created successfully
- *       400:
- *         description: Validation error
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     project:
+ *                       $ref: '#/components/schemas/Project'
  */
 router.post(
   '/',
   authenticate,
-  authorize(['company']),
+  companyOnly,
   [
-    body('title').notEmpty().withMessage('Title is required'),
-    body('description').notEmpty().withMessage('Description is required'),
+    body('title').trim().notEmpty().withMessage('Title is required'),
+    body('description').trim().notEmpty().withMessage('Description is required'),
     body('timeframe.startDate')
       .isISO8601()
       .withMessage('Start date must be a valid date'),
@@ -161,11 +160,9 @@ router.post(
       .isISO8601()
       .withMessage('End date must be a valid date')
       .custom((value, { req }) => {
-        if (new Date(value) <= new Date(req.body.timeframe.startDate)) {
-          throw new Error('End date must be after start date');
-        }
-        return true;
-      }),
+        return new Date(value) > new Date(req.body.timeframe.startDate);
+      })
+      .withMessage('End date must be after start date'),
   ],
   createProject
 );
@@ -190,54 +187,34 @@ router.post(
  *       content:
  *         application/json:
  *           schema:
- *             type: object
- *             properties:
- *               title:
- *                 type: string
- *               description:
- *                 type: string
- *               requirements:
- *                 type: array
- *                 items:
- *                   type: string
- *               timeframe:
- *                 type: object
- *                 properties:
- *                   startDate:
- *                     type: string
- *                     format: date
- *                   endDate:
- *                     type: string
- *                     format: date
- *               status:
- *                 type: string
- *                 enum: [open, in-progress, completed, canceled]
- *               skillsRequired:
- *                 type: array
- *                 items:
- *                   type: string
- *               tags:
- *                 type: array
- *                 items:
- *                   type: string
+ *             $ref: '#/components/schemas/UpdateProjectRequest'
  *     responses:
  *       200:
  *         description: Project updated successfully
- *       400:
- *         description: Validation error
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Project not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     project:
+ *                       $ref: '#/components/schemas/Project'
  */
 router.put(
   '/:id',
   authenticate,
+  companyOnly,
   [
+    body('title').optional().trim().notEmpty().withMessage('Title cannot be empty'),
+    body('description')
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage('Description cannot be empty'),
     body('timeframe.startDate')
       .optional()
       .isISO8601()
@@ -247,18 +224,12 @@ router.put(
       .isISO8601()
       .withMessage('End date must be a valid date')
       .custom((value, { req }) => {
-        if (
-          req.body.timeframe?.startDate &&
-          new Date(value) <= new Date(req.body.timeframe.startDate)
-        ) {
-          throw new Error('End date must be after start date');
+        if (req.body.timeframe && req.body.timeframe.startDate) {
+          return new Date(value) > new Date(req.body.timeframe.startDate);
         }
         return true;
-      }),
-    body('status')
-      .optional()
-      .isIn(['open', 'in-progress', 'completed', 'canceled'])
-      .withMessage('Invalid status value'),
+      })
+      .withMessage('End date must be after start date'),
   ],
   updateProject
 );
@@ -281,16 +252,17 @@ router.put(
  *     responses:
  *       200:
  *         description: Project deleted successfully
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: Project not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 message:
+ *                   type: string
  */
-router.delete('/:id', authenticate, deleteProject);
+router.delete('/:id', authenticate, companyOnly, deleteProject);
 
 /**
  * @swagger
@@ -318,30 +290,37 @@ router.delete('/:id', authenticate, deleteProject);
  *             properties:
  *               coverLetter:
  *                 type: string
- *                 minLength: 50
- *                 maxLength: 1000
+ *               submissionLink:
+ *                 type: string
  *     responses:
  *       201:
  *         description: Application submitted successfully
- *       400:
- *         description: Validation error or already applied
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized (must be 'junior' role)
- *       404:
- *         description: Project not found
- *       500:
- *         description: Server error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     application:
+ *                       $ref: '#/components/schemas/Application'
  */
 router.post(
   '/:id/apply',
   authenticate,
-  authorize(['junior']),
+  juniorOnly,
   [
     body('coverLetter')
-      .isLength({ min: 50, max: 1000 })
-      .withMessage('Cover letter must be between 50 and 1000 characters'),
+      .trim()
+      .notEmpty()
+      .withMessage('Cover letter is required'),
+    body('submissionLink')
+      .optional()
+      .isURL()
+      .withMessage('Submission link must be a valid URL'),
   ],
   createApplication
 );
