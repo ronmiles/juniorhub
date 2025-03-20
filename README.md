@@ -8,7 +8,7 @@ JuniorHub is a platform that connects junior developers with companies that need
 - **Frontend:** React (TypeScript, Vite)
 - **Monorepo:** Nx
 - **Database:** MongoDB (with Mongoose)
-- **Authentication:** JWT (with Refresh Tokens) & OAuth (Google, Facebook)
+- **Authentication:** JWT (with Refresh Tokens) & OAuth (Google)
 - **State Management:** React Query and Zustand
 - **API Documentation:** Swagger
 - **Testing:** Jest (unit tests for backend), React Testing Library (frontend)

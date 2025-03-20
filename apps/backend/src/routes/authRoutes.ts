@@ -10,7 +10,6 @@ import {
 } from '../controllers/authController';
 import { 
   googleAuth, 
-  facebookAuth,
   completeOAuthSignup 
 } from '../controllers/oauthController';
 import { authenticate } from '../middleware/auth';
@@ -30,12 +29,6 @@ interface AuthUser {
     email: string;
     name: string;
     picture?: string;
-  };
-  facebookProfile?: {
-    id: string;
-    email: string;
-    name: string;
-    picture?: { data?: { url?: string } };
   };
 }
 
@@ -217,34 +210,6 @@ router.post('/google', googleAuth);
 
 /**
  * @swagger
- * /api/auth/facebook:
- *   post:
- *     summary: Authenticate with Facebook token
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - token
- *             properties:
- *               token:
- *                 type: string
- *               role:
- *                 type: string
- *                 enum: [junior, company]
- *     responses:
- *       200:
- *         description: Authentication successful
- *       400:
- *         description: Invalid token
- */
-router.post('/facebook', facebookAuth);
-
-/**
- * @swagger
  * /api/auth/complete-oauth-signup:
  *   post:
  *     summary: Complete OAuth signup by selecting role and providing role-specific details
@@ -264,7 +229,7 @@ router.post('/facebook', facebookAuth);
  *                 type: string
  *               provider:
  *                 type: string
- *                 enum: [google, facebook]
+ *                 enum: [google]
  *               role:
  *                 type: string
  *                 enum: [junior, company]
@@ -336,73 +301,6 @@ router.get('/google/callback',
       // Add profile picture if available
       if (user.googleProfile.picture) {
         params.append('picture', user.googleProfile.picture);
-      }
-      
-      console.log('Redirecting to OAuth callback with params:', params.toString());
-      return res.redirect(`${FRONTEND_URL}${OAUTH_CALLBACK_PATH}?${params.toString()}`);
-    }
-    
-    // User already has a role, generate tokens
-    const tokens = generateTokens(user.userId || user._id.toString(), user.role);
-    
-    // Save refresh token
-    if (user.save) {
-      user.refreshToken = tokens.refreshToken;
-      user.save().catch((err: any) => console.error('Error saving refresh token:', err));
-    }
-    
-    // Determine dashboard based on role
-    const dashboardUrl = `${FRONTEND_URL}${DASHBOARD_PATH}`;
-    
-    // Include tokens in redirect
-    const redirectParams = new URLSearchParams({
-      accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken
-    });
-    
-    console.log('Redirecting authenticated user to dashboard');
-    res.redirect(`${dashboardUrl}?${redirectParams.toString()}`);
-  }
-);
-
-// Facebook OAuth routes
-router.get('/facebook',
-  passport.authenticate('facebook', { 
-    scope: ['email', 'public_profile'],
-    session: false
-  })
-);
-
-router.get('/facebook/callback', 
-  passport.authenticate('facebook', { 
-    session: false,
-    failureRedirect: `${FRONTEND_URL}${LOGIN_PATH}?error=facebook_auth_failed` 
-  }),
-  (req, res) => {
-    console.log('Facebook callback received:', req.user);
-
-    // Use type assertion to any first to handle different user object structures
-    const user = req.user as any;
-    
-    // Check if user needs to select a role
-    if (!user.role || user.needsRoleSelection) {
-      // Make sure we have Facebook data
-      if (!user.facebookProfile) {
-        console.log('Missing Facebook profile data');
-        return res.redirect(`${FRONTEND_URL}${LOGIN_PATH}?error=missing_facebook_data`);
-      }
-      
-      // Create a structured URL with user data for role selection
-      const params = new URLSearchParams({
-        provider: 'facebook',
-        userId: user.facebookProfile.id, // Use facebookProfile.id as userId
-        email: user.facebookProfile.email,
-        name: user.facebookProfile.name
-      });
-      
-      // Add profile picture if available
-      if (user.facebookProfile.picture?.data?.url) {
-        params.append('picture', user.facebookProfile.picture.data.url);
       }
       
       console.log('Redirecting to OAuth callback with params:', params.toString());

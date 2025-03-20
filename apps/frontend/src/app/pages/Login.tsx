@@ -45,11 +45,6 @@ const Login = () => {
     window.location.href = `${API_URL}/auth/google`;
   };
 
-  // Facebook OAuth login function
-  const handleFacebookLogin = () => {
-    window.location.href = `${API_URL}/auth/facebook`;
-  };
-
   return (
     <div className="max-w-md mx-auto mt-10 mb-20 p-6 bg-white rounded-lg shadow-md">
       <h1 className="text-2xl font-bold text-center mb-6">Log in to JuniorHub</h1>
@@ -180,16 +175,6 @@ const Login = () => {
               </g>
             </svg>
             Sign in with Google
-          </button>
-          
-          <button
-            onClick={handleFacebookLogin}
-            className="w-full flex justify-center py-2 px-4 border border-gray-300 rounded-md shadow-sm bg-white text-sm font-medium text-gray-700 hover:bg-gray-50"
-          >
-            <svg className="h-5 w-5 mr-2" viewBox="0 0 24 24" fill="#1877F2">
-              <path d="M12 2.04C6.5 2.04 2 6.53 2 12.06C2 17.06 5.66 21.21 10.44 21.96V14.96H7.9V12.06H10.44V9.85C10.44 7.34 11.93 5.96 14.22 5.96C15.31 5.96 16.45 6.15 16.45 6.15V8.62H15.19C13.95 8.62 13.56 9.39 13.56 10.18V12.06H16.34L15.89 14.96H13.56V21.96C18.34 21.21 22 17.06 22 12.06C22 6.53 17.5 2.04 12 2.04Z" />
-            </svg>
-            Sign in with Facebook
           </button>
         </div>
       </div>

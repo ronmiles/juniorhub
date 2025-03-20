@@ -13,12 +13,6 @@ interface AuthUser {
     name: string;
     picture?: string;
   };
-  facebookProfile?: {
-    id: string;
-    email: string;
-    name: string;
-    picture?: string;
-  };
 }
 
 // Extend Express Request type to include our custom user

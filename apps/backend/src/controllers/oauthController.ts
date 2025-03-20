@@ -74,8 +74,6 @@ export const completeOAuthSignup = async (req: Request, res: Response): Promise<
     
     if (provider === 'google') {
       query.$or.push({ googleId: userId });
-    } else if (provider === 'facebook') {
-      query.$or.push({ facebookId: userId });
     }
     
     user = await User.findOne(query);
@@ -96,8 +94,6 @@ export const completeOAuthSignup = async (req: Request, res: Response): Promise<
       // Add provider-specific ID
       if (provider === 'google') {
         userData.googleId = userId;
-      } else if (provider === 'facebook') {
-        userData.facebookId = userId;
       }
       
       // Add role-specific fields
@@ -118,8 +114,6 @@ export const completeOAuthSignup = async (req: Request, res: Response): Promise<
       // Update existing user with provider ID if not set
       if (provider === 'google' && !user.googleId) {
         user.googleId = userId;
-      } else if (provider === 'facebook' && !user.facebookId) {
-        user.facebookId = userId;
       }
       
       // Update user with role and role-specific fields
@@ -366,174 +360,3 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
     });
   }
 };
-
-/**
- * Facebook OAuth login/register
- * @route POST /api/auth/facebook
- * @access Public
- */
-export const facebookAuth = async (req: Request, res: Response): Promise<void> => {
-  try {
-    const { 
-      accessToken, 
-      role,
-      // Junior specific fields
-      portfolio,
-      skills,
-      experienceLevel,
-      // Company specific fields
-      companyName,
-      website,
-      industry 
-    } = req.body;
-
-    if (!accessToken) {
-      res.status(400).json({
-        success: false,
-        error: 'Facebook access token is required',
-      });
-      return;
-    }
-
-    // Verify Facebook token and get user info
-    const facebookResponse = await axios.get(
-      `https://graph.facebook.com/me?fields=id,name,email&access_token=${accessToken}`
-    );
-
-    if (!facebookResponse.data) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid Facebook token',
-      });
-      return;
-    }
-
-    const { email, name, id: facebookId } = facebookResponse.data;
-
-    if (!email) {
-      res.status(400).json({
-        success: false,
-        error: 'Email not provided by Facebook. Please check your Facebook privacy settings.',
-      });
-      return;
-    }
-
-    // Check if user exists
-    let user = await User.findOne({ email });
-    let isNewUser = false;
-
-    if (user) {
-      // Update Facebook ID if not set
-      if (!user.facebookId) {
-        user.facebookId = facebookId;
-        await user.save();
-      }
-    } else {
-      // For new users, role is required
-      if (!role) {
-        res.status(400).json({
-          success: false,
-          error: 'Role is required for new users',
-          isNewUser: true,
-        });
-        return;
-      }
-
-      // Validate role
-      if (!['junior', 'company'].includes(role)) {
-        res.status(400).json({
-          success: false,
-          error: 'Invalid role. Must be either "junior" or "company"',
-        });
-        return;
-      }
-
-      // Validate role-specific required fields
-      if (role === 'junior' && !experienceLevel) {
-        res.status(400).json({
-          success: false,
-          error: 'Experience level is required for junior users',
-        });
-        return;
-      }
-  
-      if (role === 'company' && !companyName) {
-        res.status(400).json({
-          success: false,
-          error: 'Company name is required for company users',
-        });
-        return;
-      }
-
-      // Create new user with role-specific fields
-      const userData: any = {
-        name,
-        email,
-        facebookId,
-        role,
-        password: null, // No password for OAuth users
-      };
-
-      // Add role-specific fields
-      if (role === 'junior') {
-        userData.portfolio = portfolio || [];
-        userData.skills = skills || [];
-        userData.experienceLevel = experienceLevel;
-      } else if (role === 'company') {
-        userData.companyName = companyName;
-        userData.website = website || '';
-        userData.industry = industry;
-      }
-
-      user = new User(userData);
-      await user.save();
-      isNewUser = true;
-    }
-
-    // Generate tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
-
-    // Save refresh token to user
-    user.refreshToken = tokens.refreshToken;
-    await user.save();
-
-    // Prepare user data for response with role-specific fields
-    const userData = {
-      id: user._id,
-      name: user.name,
-      email: user.email,
-      role: user.role,
-      profilePicture: user.profilePicture,
-    };
-
-    // Add role-specific fields to response
-    if (user.role === 'junior') {
-      Object.assign(userData, {
-        portfolio: user.portfolio,
-        skills: user.skills,
-        experienceLevel: user.experienceLevel
-      });
-    } else if (user.role === 'company') {
-      Object.assign(userData, {
-        companyName: user.companyName,
-        website: user.website,
-        industry: user.industry
-      });
-    }
-
-    res.status(200).json({
-      success: true,
-      data: {
-        user: userData,
-        tokens,
-        isNewUser
-      },
-    });
-  } catch (error) {
-    console.error('Error in facebookAuth:', error);
-    res.status(500).json({
-      success: false,
-      error: 'Server error',
-    });
-  }
-}; 
