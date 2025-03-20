@@ -1,8 +1,7 @@
-import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
-import User from '../models/User';
-import { generateTokens, verifyRefreshToken } from '../utils/jwt';
-import { ApiResponse, AuthTokens } from '@juniorhub/types';
+import { Request, Response } from "express";
+import { validationResult } from "express-validator";
+import User from "../../models/User";
+import { generateTokens, verifyRefreshToken } from "../../utils/jwt";
 
 /**
  * Register a new user
@@ -16,16 +15,16 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        error: 'Validation failed',
+        error: "Validation failed",
         errors: errors.array(),
       });
       return;
     }
 
-    const { 
-      name, 
-      email, 
-      password, 
+    const {
+      name,
+      email,
+      password,
       role,
       // Junior specific fields
       portfolio,
@@ -34,11 +33,11 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       // Company specific fields
       companyName,
       website,
-      industry 
+      industry,
     } = req.body;
 
     // Validate role
-    if (!['junior', 'company'].includes(role)) {
+    if (!["junior", "company"].includes(role)) {
       res.status(400).json({
         success: false,
         error: 'Invalid role. Must be either "junior" or "company"',
@@ -47,18 +46,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Validate role-specific required fields
-    if (role === 'junior' && !experienceLevel) {
+    if (role === "junior" && !experienceLevel) {
       res.status(400).json({
         success: false,
-        error: 'Experience level is required for junior users',
+        error: "Experience level is required for junior users",
       });
       return;
     }
 
-    if (role === 'company' && !companyName) {
+    if (role === "company" && !companyName) {
       res.status(400).json({
         success: false,
-        error: 'Company name is required for company users',
+        error: "Company name is required for company users",
       });
       return;
     }
@@ -68,7 +67,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     if (existingUser) {
       res.status(400).json({
         success: false,
-        error: 'User already exists with this email',
+        error: "User already exists with this email",
       });
       return;
     }
@@ -78,17 +77,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       name,
       email,
       password,
-      role
+      role,
     };
 
     // Add role-specific fields
-    if (role === 'junior') {
+    if (role === "junior") {
       userData.portfolio = portfolio || [];
       userData.skills = skills || [];
       userData.experienceLevel = experienceLevel;
-    } else if (role === 'company') {
+    } else if (role === "company") {
       userData.companyName = companyName;
-      userData.website = website || '';
+      userData.website = website || "";
       userData.industry = industry;
     }
 
@@ -111,17 +110,17 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     };
 
     // Add role-specific fields to response
-    if (user.role === 'junior') {
+    if (user.role === "junior") {
       Object.assign(userData2, {
         portfolio: user.portfolio,
         skills: user.skills,
-        experienceLevel: user.experienceLevel
+        experienceLevel: user.experienceLevel,
       });
-    } else if (user.role === 'company') {
+    } else if (user.role === "company") {
       Object.assign(userData2, {
         companyName: user.companyName,
         website: user.website,
-        industry: user.industry
+        industry: user.industry,
       });
     }
 
@@ -132,13 +131,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
         user: userData2,
         tokens,
       },
-      message: 'User registered successfully',
+      message: "User registered successfully",
     });
   } catch (error) {
-    console.error('Register error:', error);
+    console.error("Register error:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error',
+      error: "Server error",
     });
   }
 };
@@ -155,7 +154,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
-        error: 'Validation failed',
+        error: "Validation failed",
         errors: errors.array(),
       });
       return;
@@ -164,11 +163,11 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     const { email, password } = req.body;
 
     // Find user by email and select password field (which is normally excluded)
-    const user = await User.findOne({ email }).select('+password');
+    const user = await User.findOne({ email }).select("+password");
     if (!user) {
       res.status(400).json({
         success: false,
-        error: 'Invalid credentials',
+        error: "Invalid credentials",
       });
       return;
     }
@@ -178,7 +177,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     if (!isMatch) {
       res.status(400).json({
         success: false,
-        error: 'Invalid credentials',
+        error: "Invalid credentials",
       });
       return;
     }
@@ -202,13 +201,13 @@ export const login = async (req: Request, res: Response): Promise<void> => {
         },
         tokens,
       },
-      message: 'Login successful',
+      message: "Login successful",
     });
   } catch (error) {
-    console.error('Login error:', error);
+    console.error("Login error:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error',
+      error: "Server error",
     });
   }
 };
@@ -218,14 +217,17 @@ export const login = async (req: Request, res: Response): Promise<void> => {
  * @route POST /api/auth/refresh-token
  * @access Public
  */
-export const refreshToken = async (req: Request, res: Response): Promise<void> => {
+export const refreshToken = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     const { refreshToken } = req.body;
 
     if (!refreshToken) {
       res.status(400).json({
         success: false,
-        error: 'Refresh token is required',
+        error: "Refresh token is required",
       });
       return;
     }
@@ -235,17 +237,17 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
     if (!decoded) {
       res.status(401).json({
         success: false,
-        error: 'Invalid or expired refresh token',
+        error: "Invalid or expired refresh token",
       });
       return;
     }
 
     // Find user by ID and check refresh token
-    const user = await User.findById(decoded.userId).select('+refreshToken');
+    const user = await User.findById(decoded.userId).select("+refreshToken");
     if (!user || user.refreshToken !== refreshToken) {
       res.status(401).json({
         success: false,
-        error: 'Invalid refresh token',
+        error: "Invalid refresh token",
       });
       return;
     }
@@ -263,13 +265,13 @@ export const refreshToken = async (req: Request, res: Response): Promise<void> =
       data: {
         tokens,
       },
-      message: 'Token refreshed successfully',
+      message: "Token refreshed successfully",
     });
   } catch (error) {
-    console.error('Refresh token error:', error);
+    console.error("Refresh token error:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error',
+      error: "Server error",
     });
   }
 };
@@ -293,13 +295,13 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
     // Return success response
     res.status(200).json({
       success: true,
-      message: 'Logged out successfully',
+      message: "Logged out successfully",
     });
   } catch (error) {
-    console.error('Logout error:', error);
+    console.error("Logout error:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error',
+      error: "Server error",
     });
   }
 };
@@ -309,12 +311,15 @@ export const logout = async (req: Request, res: Response): Promise<void> => {
  * @route GET /api/auth/me
  * @access Private
  */
-export const getCurrentUser = async (req: Request, res: Response): Promise<void> => {
+export const getCurrentUser = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
     if (!req.user) {
       res.status(401).json({
         success: false,
-        error: 'Not authenticated',
+        error: "Not authenticated",
       });
       return;
     }
@@ -323,7 +328,7 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
     if (!user) {
       res.status(404).json({
         success: false,
-        error: 'User not found',
+        error: "User not found",
       });
       return;
     }
@@ -343,10 +348,10 @@ export const getCurrentUser = async (req: Request, res: Response): Promise<void>
       },
     });
   } catch (error) {
-    console.error('Get current user error:', error);
+    console.error("Get current user error:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error',
+      error: "Server error",
     });
   }
-}; 
+};

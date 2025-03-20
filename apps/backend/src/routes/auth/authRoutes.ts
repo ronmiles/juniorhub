@@ -7,11 +7,11 @@ import {
   refreshToken,
   logout,
   getCurrentUser,
-} from "../../controllers/authController";
+} from "../../controllers/auth/authController";
 import {
   googleAuth,
   completeOAuthSignup,
-} from "../../controllers/oauthController";
+} from "../../controllers/auth/googleAuthController";
 import { authenticate } from "../../middleware/auth";
 import config from "../../config/config";
 import { generateTokens } from "../../utils/jwt";

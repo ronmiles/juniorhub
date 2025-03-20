@@ -3,7 +3,7 @@ import passport from "passport";
 import {
   googleAuth,
   completeOAuthSignup,
-} from "../../controllers/oauthController";
+} from "../../controllers/auth/googleAuthController";
 import config from "../../config/config";
 import { generateTokens } from "../../utils/jwt";
 import User from "../../models/User";
