@@ -138,7 +138,6 @@ export interface RegisterRequest {
 
 export interface OAuthLoginRequest {
   token?: string; // Google ID token
-  accessToken?: string; // Facebook access token
   role?: 'junior' | 'company';
   // Junior specific fields
   portfolio?: string[];

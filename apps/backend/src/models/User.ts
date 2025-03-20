@@ -7,7 +7,6 @@ type MongooseUser = Omit<UserType, 'id' | 'projects' | 'applications'> & {
   projects?: mongoose.Types.ObjectId[];
   applications?: mongoose.Types.ObjectId[];
   googleId?: string;
-  facebookId?: string;
   refreshToken?: string;
   // Junior specific fields
   portfolio?: string[];
@@ -43,7 +42,7 @@ const UserSchema = new Schema<UserDocument>(
       type: String,
       required: function() {
         // Password is required unless the user is using OAuth
-        return !this.googleId && !this.facebookId;
+        return !this.googleId
       },
       minlength: [6, 'Password must be at least 6 characters long'],
       select: false, // Don't return password by default
@@ -82,11 +81,6 @@ const UserSchema = new Schema<UserDocument>(
       type: String,
       unique: true,
       sparse: true, // Allow null/undefined values (for users not using Google)
-    },
-    facebookId: {
-      type: String,
-      unique: true,
-      sparse: true, // Allow null/undefined values (for users not using Facebook)
     },
     refreshToken: {
       type: String,
