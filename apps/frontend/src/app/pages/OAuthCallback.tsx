@@ -87,7 +87,7 @@ const OAuthCallback = () => {
       
       console.log('Sending OAuth completion request:', requestBody);
       
-      const response = await axios.post(`${API_URL}/auth/complete-oauth-signup`, requestBody);
+      const response = await axios.post(`${API_URL}/auth/google/complete-oauth-signup`, requestBody);
       
       console.log('OAuth completion response:', response.data);
       

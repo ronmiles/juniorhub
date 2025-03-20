@@ -7,33 +7,23 @@ import {
   refreshToken,
   logout,
   getCurrentUser,
-} from "../controllers/authController";
+} from "../../controllers/authController";
 import {
   googleAuth,
   completeOAuthSignup,
-} from "../controllers/oauthController";
-import { authenticate } from "../middleware/auth";
-import config from "../config/config";
-import { generateTokens } from "../utils/jwt";
-import User from "../models/User";
-
-// Define our AuthUser interface that's used in this file
-interface AuthUser {
-  _id: { toString(): string };
-  email: string;
-  name: string;
-  role?: string;
-  refreshToken?: string;
-  save: () => Promise<any>;
-  googleProfile?: {
-    id: string;
-    email: string;
-    name: string;
-    picture?: string;
-  };
-}
+} from "../../controllers/oauthController";
+import { authenticate } from "../../middleware/auth";
+import config from "../../config/config";
+import { generateTokens } from "../../utils/jwt";
+import User from "../../models/User";
 
 const router: Router = express.Router();
+
+// Configure frontend URLs
+const FRONTEND_URL = config.clientUrl || "http://localhost:4200";
+const OAUTH_CALLBACK_PATH = "/oauth-callback";
+const LOGIN_PATH = "/login";
+const DASHBOARD_PATH = "/dashboard";
 
 /**
  * @swagger
@@ -259,12 +249,6 @@ router.post("/google", googleAuth);
  *         description: User not found
  */
 router.post("/complete-oauth-signup", completeOAuthSignup);
-
-// Configure frontend URLs
-const FRONTEND_URL = config.clientUrl || "http://localhost:4200";
-const OAUTH_CALLBACK_PATH = "/oauth-callback";
-const LOGIN_PATH = "/login";
-const DASHBOARD_PATH = "/dashboard";
 
 // Google OAuth routes
 router.get(
