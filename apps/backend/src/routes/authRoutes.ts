@@ -1,20 +1,21 @@
-import express, { Router } from 'express';
-import passport from 'passport';
-import { body, validationResult } from 'express-validator';
-import { 
-  register, 
-  login, 
-  refreshToken, 
-  logout, 
-  getCurrentUser 
-} from '../controllers/authController';
-import { 
-  googleAuth, 
-  completeOAuthSignup 
-} from '../controllers/oauthController';
-import { authenticate } from '../middleware/auth';
-import config from '../config/config';
-import { generateTokens } from '../utils/jwt';
+import express, { Router } from "express";
+import passport from "passport";
+import { body } from "express-validator";
+import {
+  register,
+  login,
+  refreshToken,
+  logout,
+  getCurrentUser,
+} from "../controllers/authController";
+import {
+  googleAuth,
+  completeOAuthSignup,
+} from "../controllers/oauthController";
+import { authenticate } from "../middleware/auth";
+import config from "../config/config";
+import { generateTokens } from "../utils/jwt";
+import User from "../models/User";
 
 // Define our AuthUser interface that's used in this file
 interface AuthUser {
@@ -71,16 +72,17 @@ const router: Router = express.Router();
  *       409:
  *         description: Email already in use
  */
-router.post('/register', 
+router.post(
+  "/register",
   [
-    body('name').notEmpty().withMessage('Name is required'),
-    body('email').isEmail().withMessage('Please include a valid email'),
-    body('password')
+    body("name").notEmpty().withMessage("Name is required"),
+    body("email").isEmail().withMessage("Please include a valid email"),
+    body("password")
       .isLength({ min: 6 })
-      .withMessage('Password must be at least 6 characters long'),
-    body('role')
-      .isIn(['junior', 'company'])
-      .withMessage('Role must be either junior or company')
+      .withMessage("Password must be at least 6 characters long"),
+    body("role")
+      .isIn(["junior", "company"])
+      .withMessage("Role must be either junior or company"),
   ],
   register
 );
@@ -115,10 +117,11 @@ router.post('/register',
  *       401:
  *         description: Invalid credentials
  */
-router.post('/login', 
+router.post(
+  "/login",
   [
-    body('email').isEmail().withMessage('Please include a valid email'),
-    body('password').exists().withMessage('Password is required')
+    body("email").isEmail().withMessage("Please include a valid email"),
+    body("password").exists().withMessage("Password is required"),
   ],
   login
 );
@@ -146,7 +149,7 @@ router.post('/login',
  *       400:
  *         description: Invalid refresh token
  */
-router.post('/refresh-token', refreshToken);
+router.post("/refresh-token", refreshToken);
 
 /**
  * @swagger
@@ -162,7 +165,7 @@ router.post('/refresh-token', refreshToken);
  *       401:
  *         description: Unauthorized
  */
-router.post('/logout', authenticate, logout);
+router.post("/logout", authenticate, logout);
 
 /**
  * @swagger
@@ -178,7 +181,7 @@ router.post('/logout', authenticate, logout);
  *       401:
  *         description: Unauthorized
  */
-router.get('/me', authenticate, getCurrentUser);
+router.get("/me", authenticate, getCurrentUser);
 
 /**
  * @swagger
@@ -206,7 +209,7 @@ router.get('/me', authenticate, getCurrentUser);
  *       400:
  *         description: Invalid token
  */
-router.post('/google', googleAuth);
+router.post("/google", googleAuth);
 
 /**
  * @swagger
@@ -255,79 +258,102 @@ router.post('/google', googleAuth);
  *       404:
  *         description: User not found
  */
-router.post('/complete-oauth-signup', completeOAuthSignup);
+router.post("/complete-oauth-signup", completeOAuthSignup);
 
 // Configure frontend URLs
-const FRONTEND_URL = config.clientUrl || 'http://localhost:4200';
-const OAUTH_CALLBACK_PATH = '/oauth-callback';
-const LOGIN_PATH = '/login';
-const DASHBOARD_PATH = '/dashboard';
+const FRONTEND_URL = config.clientUrl || "http://localhost:4200";
+const OAUTH_CALLBACK_PATH = "/oauth-callback";
+const LOGIN_PATH = "/login";
+const DASHBOARD_PATH = "/dashboard";
 
 // Google OAuth routes
-router.get('/google',
-  passport.authenticate('google', { 
-    scope: ['profile', 'email'],
-    session: false
+router.get(
+  "/google",
+  passport.authenticate("google", {
+    scope: ["profile", "email"],
+    session: false,
   })
 );
 
-router.get('/google/callback', 
-  passport.authenticate('google', { 
+router.get(
+  "/google/callback",
+  passport.authenticate("google", {
     session: false,
-    failureRedirect: `${FRONTEND_URL}${LOGIN_PATH}?error=google_auth_failed` 
+    failureRedirect: `${FRONTEND_URL}${LOGIN_PATH}?error=google_auth_failed`,
   }),
-  (req, res) => {
-    console.log('Google callback received:', req.user);
+  async (req, res) => {
+    console.log("Google callback received:", req.user);
 
     // Use type assertion to any first to handle different user object structures
     const user = req.user as any;
-    
     // Check if user needs to select a role
     if (!user.role || user.needsRoleSelection) {
       // Make sure we have Google data
       if (!user.googleProfile) {
-        console.log('Missing Google profile data');
-        return res.redirect(`${FRONTEND_URL}${LOGIN_PATH}?error=missing_google_data`);
+        console.log("Missing Google profile data");
+        return res.redirect(
+          `${FRONTEND_URL}${LOGIN_PATH}?error=missing_google_data`
+        );
       }
-      
+
       // Create a structured URL with user data for role selection
       const params = new URLSearchParams({
-        provider: 'google',
+        provider: "google",
         userId: user.googleProfile.id, // Use googleProfile.id as userId
         email: user.googleProfile.email,
-        name: user.googleProfile.name
+        name: user.googleProfile.name,
       });
-      
+
       // Add profile picture if available
       if (user.googleProfile.picture) {
-        params.append('picture', user.googleProfile.picture);
+        params.append("picture", user.googleProfile.picture);
       }
-      
-      console.log('Redirecting to OAuth callback with params:', params.toString());
-      return res.redirect(`${FRONTEND_URL}${OAUTH_CALLBACK_PATH}?${params.toString()}`);
+
+      console.log(
+        "Redirecting to OAuth callback with params:",
+        params.toString()
+      );
+      return res.redirect(
+        `${FRONTEND_URL}${OAUTH_CALLBACK_PATH}?${params.toString()}`
+      );
     }
-    
+
     // User already has a role, generate tokens
-    const tokens = generateTokens(user.userId || user._id.toString(), user.role);
-    
+    const tokens = generateTokens(
+      user.userId || user._id.toString(),
+      user.role
+    );
+
     // Save refresh token
     if (user.save) {
       user.refreshToken = tokens.refreshToken;
-      user.save().catch((err: any) => console.error('Error saving refresh token:', err));
+      user
+        .save()
+        .catch((err: any) => console.error("Error saving refresh token:", err));
     }
-    
+
     // Determine dashboard based on role
     const dashboardUrl = `${FRONTEND_URL}${DASHBOARD_PATH}`;
-    
+
+    const user2 = await User.findById(user._id ?? user.userId).lean();
     // Include tokens in redirect
+    console.error("user2", { user2 });
+    console.error("user2._id", user2?._id?.toString());
     const redirectParams = new URLSearchParams({
+      userId: user2?._id?.toString() ?? user.userId ?? "",
+      name: user2?.name ?? "",
+      email: user2?.email ?? "",
+      role: user2?.role ?? "",
+      profilePicture: user2?.profilePicture ?? "",
       accessToken: tokens.accessToken,
-      refreshToken: tokens.refreshToken
+      refreshToken: tokens.refreshToken,
     });
-    
-    console.log('Redirecting authenticated user to dashboard');
+
+    console.log("Redirecting authenticated user to dashboard", {
+      url: `${dashboardUrl}?${redirectParams.toString()}`,
+    });
     res.redirect(`${dashboardUrl}?${redirectParams.toString()}`);
   }
 );
 
-export default router; 
+export default router;
