@@ -8,7 +8,13 @@ import {
   deleteUser,
   getUserProjects,
   getUserApplications,
+  uploadProfilePicture,
+  deleteUserProfilePicture,
 } from "../controllers/userController";
+import {
+  uploadProfilePicture as uploadMiddleware,
+  handleUploadError,
+} from "../middleware/uploadMiddleware";
 
 const router = express.Router();
 
@@ -296,6 +302,89 @@ router.get(
   authenticate,
   authorizeOwn,
   getUserApplications
+);
+
+/**
+ * @swagger
+ * /api/users/{id}/profile-picture:
+ *   post:
+ *     summary: Upload profile picture
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         multipart/form-data:
+ *           schema:
+ *             type: object
+ *             properties:
+ *               profilePicture:
+ *                 type: string
+ *                 format: binary
+ *                 description: Profile picture (JPEG, PNG, or WebP, max 5MB)
+ *     responses:
+ *       200:
+ *         description: Profile picture uploaded successfully
+ *       400:
+ *         description: Validation error or file error
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+router.post(
+  "/:id/profile-picture",
+  authenticate,
+  authorizeOwn,
+  uploadMiddleware,
+  handleUploadError,
+  uploadProfilePicture
+);
+
+/**
+ * @swagger
+ * /api/users/{id}/profile-picture:
+ *   delete:
+ *     summary: Delete profile picture
+ *     tags: [Users]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: User ID
+ *     responses:
+ *       200:
+ *         description: Profile picture removed successfully
+ *       401:
+ *         description: Not authenticated
+ *       403:
+ *         description: Not authorized
+ *       404:
+ *         description: User not found
+ *       500:
+ *         description: Server error
+ */
+router.delete(
+  "/:id/profile-picture",
+  authenticate,
+  authorizeOwn,
+  deleteUserProfilePicture
 );
 
 export default router;

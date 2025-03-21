@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useAuth } from "../hooks/useAuth";
 import { useFormik } from "formik";
 import * as Yup from "yup";
@@ -11,12 +11,17 @@ const Profile = () => {
   const { user } = useAuth();
   const [isEditing, setIsEditing] = useState(false);
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [isUploading, setIsUploading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [successMessage, setSuccessMessage] = useState<string | null>(null);
   const [userProfile, setUserProfile] = useState<any>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [isLoadingApplications, setIsLoadingApplications] = useState(false);
   const [applicationError, setApplicationError] = useState<string | null>(null);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Fetch user profile
   useEffect(() => {
@@ -62,6 +67,174 @@ const Profile = () => {
 
     fetchApplications();
   }, [user]);
+
+  // Handle file selection
+  const handleFileChange = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+
+    // Validate file type
+    const validTypes = ["image/jpeg", "image/png", "image/webp"];
+    if (!validTypes.includes(file.type)) {
+      setError("Please select a valid image file (JPEG, PNG, or WebP)");
+      return;
+    }
+
+    // Validate file size (5MB max)
+    if (file.size > 5 * 1024 * 1024) {
+      setError("Image size should be less than 5MB");
+      return;
+    }
+
+    // Store the file in a state variable to ensure it's available for upload
+    setSelectedFile(file);
+
+    // Create preview
+    const reader = new FileReader();
+    reader.onloadend = () => {
+      setImagePreview(reader.result as string);
+    };
+    reader.readAsDataURL(file);
+  };
+
+  // Upload profile picture
+  const handleUploadPicture = async () => {
+    console.log("Upload picture button clicked");
+    console.log("User:", user);
+    console.log("Selected file:", selectedFile);
+
+    if (!user || !selectedFile) {
+      console.log("Missing user or file, cannot proceed");
+      return;
+    }
+
+    setIsUploading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      const formData = new FormData();
+      formData.append("profilePicture", selectedFile);
+
+      // Get token from localStorage
+      const token = localStorage.getItem("token");
+      console.log("Token available:", !!token);
+
+      if (!token) {
+        throw new Error("You are not logged in. Please log in and try again.");
+      }
+
+      console.log(
+        "Sending request to:",
+        `${API_URL}/users/${user.id}/profile-picture`
+      );
+
+      // Include credentials: 'include' to ensure cookies are sent
+      const response = await axios.post(
+        `${API_URL}/users/${user.id}/profile-picture`,
+        formData,
+        {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        }
+      );
+
+      console.log("Response received:", response.data);
+
+      if (response.data.success) {
+        // Update user profile with new picture URL
+        const profilePictureUrl = response.data.data.profilePicture;
+        console.log("Profile picture saved at:", profilePictureUrl);
+
+        setUserProfile({
+          ...userProfile,
+          profilePicture: profilePictureUrl,
+        });
+        setSuccessMessage("Profile picture updated successfully");
+        // Clear preview and selected file
+        setImagePreview(null);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    } catch (err: any) {
+      console.error("Upload error:", err);
+      // More specific error messages
+      if (err.response?.status === 401) {
+        setError(
+          "Authentication failed. Please log out and log back in to try again."
+        );
+      } else {
+        setError(
+          err.response?.data?.error || "Failed to upload profile picture"
+        );
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Remove profile picture
+  const handleRemovePicture = async () => {
+    if (!user) return;
+
+    setIsUploading(true);
+    setError(null);
+    setSuccessMessage(null);
+
+    try {
+      // Get token from localStorage
+      const token = localStorage.getItem("token");
+
+      if (!token) {
+        throw new Error("You are not logged in. Please log in and try again.");
+      }
+
+      const response = await axios.delete(
+        `${API_URL}/users/${user.id}/profile-picture`
+      );
+
+      if (response.data.success) {
+        // Update user profile with empty picture URL
+        setUserProfile({
+          ...userProfile,
+          profilePicture: "",
+        });
+        setSuccessMessage("Profile picture removed successfully");
+        // Clear preview and selected file
+        setImagePreview(null);
+        setSelectedFile(null);
+        if (fileInputRef.current) {
+          fileInputRef.current.value = "";
+        }
+      }
+    } catch (err: any) {
+      console.error("Delete error:", err);
+      // More specific error messages
+      if (err.response?.status === 401) {
+        setError(
+          "Authentication failed. Please log out and log back in to try again."
+        );
+      } else {
+        setError(
+          err.response?.data?.error || "Failed to remove profile picture"
+        );
+      }
+    } finally {
+      setIsUploading(false);
+    }
+  };
+
+  // Cancel image selection
+  const handleCancelImageSelection = () => {
+    setImagePreview(null);
+    setSelectedFile(null);
+    if (fileInputRef.current) {
+      fileInputRef.current.value = "";
+    }
+  };
 
   // Validation schema for profile
   const validationSchema = Yup.object({
@@ -132,6 +305,15 @@ const Profile = () => {
       }
     },
   });
+
+  // Add this helper function somewhere in your component above the return statement
+  const getFullImageUrl = (path: string) => {
+    if (!path) return "";
+    // If it's already a full URL, return it as is
+    if (path.startsWith("http")) return path;
+    // Otherwise, prepend the base URL (without the /api part)
+    return `${API_URL.replace("/api", "")}${path}`;
+  };
 
   if (!user || !userProfile) {
     return (
@@ -205,44 +387,7 @@ const Profile = () => {
               />
             </div>
 
-            {/* Profile picture field */}
-            <div className="mb-4">
-              <label
-                htmlFor="profilePicture"
-                className="block text-sm font-medium text-gray-700 mb-1"
-              >
-                Profile Picture URL (Optional)
-              </label>
-              <input
-                id="profilePicture"
-                name="profilePicture"
-                type="text"
-                placeholder="https://example.com/your-image.jpg"
-                className={`w-full px-3 py-2 border ${
-                  formik.touched.profilePicture && formik.errors.profilePicture
-                    ? "border-red-500"
-                    : "border-gray-300"
-                } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                value={formik.values.profilePicture}
-              />
-              {formik.touched.profilePicture &&
-                formik.errors.profilePicture && (
-                  <div className="mt-1 text-sm text-red-500">
-                    {formik.errors.profilePicture as string}
-                  </div>
-                )}
-              {formik.values.profilePicture && (
-                <div className="mt-2">
-                  <img
-                    src={formik.values.profilePicture}
-                    alt="Profile preview"
-                    className="w-20 h-20 object-cover rounded-full border border-gray-300"
-                  />
-                </div>
-              )}
-            </div>
+            {/* Profile picture section has been moved out of the form for separate handling */}
 
             {/* Experience level field (for juniors) */}
             {user.role === "junior" && (
@@ -383,79 +528,228 @@ const Profile = () => {
               </div>
             )}
 
-            {/* Submit buttons */}
-            <div className="flex justify-end gap-2">
+            {/* Submit button */}
+            <div className="flex justify-end mt-6">
               <button
                 type="button"
+                className="px-4 py-2 mr-2 border border-gray-300 rounded-md text-gray-700 hover:bg-gray-50 focus:outline-none focus:ring-2 focus:ring-blue-500"
                 onClick={() => setIsEditing(false)}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition"
               >
                 Cancel
               </button>
               <button
                 type="submit"
+                className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50"
                 disabled={isSubmitting}
-                className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition ${
-                  isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-                }`}
               >
-                {isSubmitting ? "Saving..." : "Save Changes"}
+                {isSubmitting ? "Saving..." : "Save"}
               </button>
             </div>
           </form>
         ) : (
           <div>
-            {/* Profile display */}
-            <div className="flex items-start justify-between mb-6">
-              <div className="flex items-center">
-                <div className="w-20 h-20 bg-gray-200 rounded-full flex items-center justify-center mr-4">
-                  {userProfile.profilePicture ? (
-                    <img
-                      src={userProfile.profilePicture}
-                      alt={userProfile.name}
-                      className="w-20 h-20 rounded-full object-cover"
-                    />
+            {/* Profile picture upload section with elegant edit button */}
+            <div className="mb-6">
+              <h3 className="text-lg font-medium text-gray-900 mb-3">
+                Profile Picture
+              </h3>
+              <div className="flex flex-col space-y-2">
+                <div className="flex items-center space-x-4">
+                  {!imagePreview ? (
+                    <div className="relative group">
+                      <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-300 transition-all duration-200 group-hover:border-blue-400">
+                        {userProfile.profilePicture ? (
+                          <img
+                            src={getFullImageUrl(userProfile.profilePicture)}
+                            alt={userProfile.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error("Image failed to load:", e);
+                              e.currentTarget.classList.add("border-red-500");
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-500 text-2xl font-bold">
+                            {userProfile.name.charAt(0) ?? "?"}
+                          </div>
+                        )}
+                      </div>
+
+                      {/* Edit button overlay */}
+                      <div className="absolute bottom-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <div className="relative">
+                          <button
+                            type="button"
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            aria-label="Edit profile picture"
+                            title="Edit profile picture"
+                          >
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                              />
+                            </svg>
+                          </button>
+
+                          {/* Dropdown menu */}
+                          {dropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 py-1">
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept="image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                id="profilePictureInput"
+                              />
+                              <label
+                                htmlFor="profilePictureInput"
+                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                role="menuitem"
+                                tabIndex={0}
+                              >
+                                {userProfile.profilePicture
+                                  ? "Change Picture"
+                                  : "Upload Picture"}
+                              </label>
+
+                              {userProfile.profilePicture && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleRemovePicture();
+                                    setDropdownOpen(false);
+                                  }}
+                                  disabled={isUploading}
+                                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  role="menuitem"
+                                >
+                                  {isUploading
+                                    ? "Removing..."
+                                    : "Remove Picture"}
+                                </button>
+                              )}
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
                   ) : (
-                    <span className="text-gray-500 text-2xl">
-                      {userProfile.name.charAt(0) ?? "?"}
-                    </span>
+                    <div className="space-y-4">
+                      <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-blue-300">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={handleUploadPicture}
+                          disabled={isUploading}
+                          className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none"
+                        >
+                          {isUploading ? "Uploading..." : "Save Picture"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelImageSelection}
+                          disabled={isUploading}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
                   )}
+
+                  <div className="text-xs text-gray-500 mt-1">
+                    JPEG, PNG, or WebP. Max 5MB.
+                  </div>
                 </div>
-                <div>
-                  <h2 className="text-xl font-semibold">{userProfile.name}</h2>
-                  <p className="text-gray-500">
-                    {userProfile.experienceLevel?.charAt(0).toUpperCase() ?? "?"}
-                    {userProfile.experienceLevel?.slice(1) ?? "?"}
-                  </p>
-                  <p className="text-sm text-gray-500">
-                    Member since{" "}
-                    {new Date(userProfile.createdAt).toLocaleDateString()}
-                  </p>
-                </div>
+
+                {/* Debug information - only visible when a profile picture exists */}
+                {userProfile.profilePicture && (
+                  <div className="mt-4 p-3 bg-gray-100 rounded-md text-xs text-gray-700 break-all">
+                    <p>
+                      <strong>Debug Info:</strong>
+                    </p>
+                    <p>Profile picture path: {userProfile.profilePicture}</p>
+                    <p>
+                      Full URL: {getFullImageUrl(userProfile.profilePicture)}
+                    </p>
+                    <p>
+                      Try opening image directly:{" "}
+                      <a
+                        href={getFullImageUrl(userProfile.profilePicture)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 underline"
+                      >
+                        Open image in new tab
+                      </a>
+                    </p>
+                  </div>
+                )}
               </div>
-              <button
-                onClick={() => setIsEditing(true)}
-                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
-              >
-                Edit Profile
-              </button>
             </div>
 
-            {/* Experience level (for juniors) */}
-            {user.role === "junior" && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2">Experience Level</h3>
-                <p className="text-gray-700">
-                  {userProfile.experienceLevel ? (
-                    <span className="capitalize">
-                      {userProfile.experienceLevel}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 italic">Not specified</span>
-                  )}
+            {/* Profile display */}
+            <div className="flex items-center mb-6">
+              <div className="mr-4">
+                {userProfile.profilePicture ? (
+                  <img
+                    src={getFullImageUrl(userProfile.profilePicture)}
+                    alt={userProfile.name}
+                    className="w-20 h-20 rounded-full object-cover border border-gray-200"
+                    onError={(e) => {
+                      console.error("Profile display image failed to load");
+                      e.currentTarget.classList.add(
+                        "border-2",
+                        "border-red-500"
+                      );
+                    }}
+                  />
+                ) : (
+                  <div className="w-20 h-20 flex items-center justify-center bg-blue-100 text-blue-500 text-2xl font-bold rounded-full border border-gray-200">
+                    {userProfile.name.charAt(0) ?? "?"}
+                  </div>
+                )}
+              </div>
+              <div>
+                <h2 className="text-xl font-semibold">{userProfile.name}</h2>
+                {user.role === "junior" && (
+                  <p className="text-gray-500 capitalize">
+                    {userProfile.experienceLevel?.charAt(0).toUpperCase() ??
+                      "?"}
+                    {userProfile.experienceLevel?.slice(1) ?? "?"} Developer
+                  </p>
+                )}
+                <p className="text-gray-500 text-sm">
+                  Member since{" "}
+                  {new Date(userProfile.createdAt).toLocaleDateString()}
                 </p>
               </div>
-            )}
+              <div className="ml-auto">
+                <button
+                  className="px-4 py-2 bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500"
+                  onClick={() => setIsEditing(true)}
+                >
+                  Edit Profile
+                </button>
+              </div>
+            </div>
 
             {/* Bio section */}
             <div className="mb-6">

@@ -17,6 +17,7 @@ import OAuthCallback from "./pages/OAuthCallback";
 import CompleteRegistration from "./pages/CompleteRegistration";
 import ProjectApplications from "./pages/ProjectApplications";
 import ApplicationDetail from "./pages/ApplicationDetail";
+import EditProject from "./pages/EditProject";
 
 // Import components (we'll create these later)
 import Layout from "./components/Layout";
@@ -42,6 +43,8 @@ export function App() {
             <Route path="oauth-callback" element={<OAuthCallback />} />
             <Route path="projects" element={<ProjectList />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
+            <Route path="projects/new" element={<CreateProject />} />
+            <Route path="projects/:id/edit" element={<EditProject />} />
 
             {/* Protected routes */}
             <Route
@@ -49,14 +52,6 @@ export function App() {
               element={
                 <ProtectedRoute>
                   <Dashboard />
-                </ProtectedRoute>
-              }
-            />
-            <Route
-              path="create-project"
-              element={
-                <ProtectedRoute roles={["company"]}>
-                  <CreateProject />
                 </ProtectedRoute>
               }
             />

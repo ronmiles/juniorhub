@@ -11,6 +11,7 @@ import swaggerUi from "swagger-ui-express";
 import swaggerJsdoc from "swagger-jsdoc";
 import http from "http";
 import passport from "passport";
+import path from "path";
 import connectDB from "./config/db";
 import config from "./config/config";
 import { initSocketServer } from "./utils/socket";
@@ -47,6 +48,11 @@ app.use(urlencoded({ extended: true }));
 
 // Initialize Passport
 app.use(passport.initialize());
+
+// Serve static files from uploads directory
+const uploadsPath = path.join(__dirname, "..", "uploads");
+app.use("/api/uploads", express.static(uploadsPath));
+console.log("Serving static files from:", uploadsPath);
 
 // Swagger documentation setup
 const swaggerOptions = {
