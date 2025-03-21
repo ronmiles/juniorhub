@@ -49,12 +49,12 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     await user.save();
 
     // Generate JWT tokens
-    const tokens = generateTokens(user._id.toString());
+    const tokens = generateTokens(user._id.toString(), user.role);
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
     user.accessToken = tokens.accessToken;
-  
+
     await user.save();
 
     const returnedUserData = {
@@ -125,13 +125,13 @@ export const completeRegister = async (
       user["industry"] = industry;
     }
 
-    console.log('hello2', { user })
+    console.log("hello2", { user });
     await user.save();
 
     res.status(201).json({
       success: true,
       data: {
-        user
+        user,
       },
       message: "User registered successfully",
     });
@@ -185,7 +185,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Generate JWT tokens
-    const tokens = generateTokens(user._id.toString());
+    const tokens = generateTokens(user._id.toString(), user.role);
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -255,7 +255,7 @@ export const refreshToken = async (
     }
 
     // Generate new tokens
-    const tokens = generateTokens(user._id.toString());
+    const tokens = generateTokens(user._id.toString(), user.role);
 
     // Update refresh token in database
     user.refreshToken = tokens.refreshToken;

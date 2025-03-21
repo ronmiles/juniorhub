@@ -2,7 +2,12 @@ import { Request, Response } from "express";
 import User from "../../models/User";
 import { generateTokens } from "../../utils/jwt";
 import axios from "axios";
-import { FRONTEND_URL, LOGIN_PATH, OAUTH_CALLBACK_PATH, DASHBOARD_PATH } from "../../utils/constants";
+import {
+  FRONTEND_URL,
+  LOGIN_PATH,
+  OAUTH_CALLBACK_PATH,
+  DASHBOARD_PATH,
+} from "../../utils/constants";
 
 /**
  * Complete OAuth signup with role selection
@@ -136,7 +141,7 @@ export const completeOAuthSignup = async (
     console.log("User saved successfully");
 
     // Generate tokens
-    const tokens = generateTokens(user._id.toString());
+    const tokens = generateTokens(user._id.toString(), user.role);
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -319,7 +324,7 @@ export const googleAuth = async (
     }
 
     // Generate tokens
-    const tokens = generateTokens(user._id.toString());
+    const tokens = generateTokens(user._id.toString(), user.role);
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -404,7 +409,7 @@ export const googleCallback = async (req, res) => {
   }
 
   // User already has a role, generate tokens
-  const tokens = generateTokens(user.userId || user._id.toString());
+  const tokens = generateTokens(user.userId || user._id.toString(), user.role);
 
   // Save refresh token
   if (user.save) {
