@@ -38,7 +38,7 @@ const ProjectDetail = () => {
 
           // Check if user has already applied
           if (user && user.role === "junior") {
-            if (projectData.applicants?.includes(user.id)) {
+            if (projectData.applications?.includes(user.id)) {
               setHasApplied(true);
             }
           }
@@ -164,7 +164,7 @@ const ProjectDetail = () => {
     user &&
     user.role === "company" &&
     project.company &&
-    user.id === project.company.id;
+    (user.id === project.company.id || user.id === project.company._id);
   const isProjectOpen = project.status === "open";
 
   return (
@@ -205,17 +205,17 @@ const ProjectDetail = () => {
           {isProjectOwner && (
             <div className="flex gap-2">
               <Link
-                to={`/projects/${project.id}/edit`}
+                to={`/projects/${project.id || project._id}/edit`}
                 className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition"
               >
                 Edit Project
               </Link>
               {isProjectOpen && (
                 <Link
-                  to={`/projects/${project.id}/applications`}
+                  to={`/projects/${project.id || project._id}/applications`}
                   className="px-4 py-2 border border-rose-500 text-rose-500 rounded-md hover:bg-rose-50 transition"
                 >
-                  View Applications ({project.applicants?.length || 0})
+                  View Applications ({project.applications?.length || 0})
                 </Link>
               )}
             </div>
@@ -509,7 +509,7 @@ const ProjectDetail = () => {
                   Applications
                 </h3>
                 <p className="mt-1">
-                  {project.applicants?.length || 0} applicants
+                  {project.applications?.length || 0} applicants
                 </p>
               </div>
             </div>
