@@ -1,14 +1,14 @@
-import express from 'express';
-import { body } from 'express-validator';
-import { authenticate, authorize, authorizeOwn } from '../middleware/auth';
-import { 
-  getUsers, 
-  getUserById, 
-  updateUser, 
+import express from "express";
+import { body } from "express-validator";
+import { authenticate, authorize, authorizeOwn } from "../middleware/auth";
+import {
+  getUsers,
+  getUserById,
+  updateUser,
   deleteUser,
   getUserProjects,
-  getUserApplications
-} from '../controllers/userController';
+  getUserApplications,
+} from "../controllers/userController";
 
 const router = express.Router();
 
@@ -54,7 +54,7 @@ const router = express.Router();
  *       500:
  *         description: Server error
  */
-router.get('/', authenticate, authorize(['admin']), getUsers);
+router.get("/", authenticate, authorize(["admin"]), getUsers);
 
 /**
  * @swagger
@@ -77,7 +77,7 @@ router.get('/', authenticate, authorize(['admin']), getUsers);
  *       500:
  *         description: Server error
  */
-router.get('/:id', getUserById);
+router.get("/:id", getUserById);
 
 /**
  * @swagger
@@ -109,8 +109,18 @@ router.get('/:id', getUserById);
  *                 type: array
  *                 items:
  *                   type: string
+ *                 description: List of skills (max 10)
  *               profilePicture:
  *                 type: string
+ *               experienceLevel:
+ *                 type: string
+ *                 enum: [beginner, intermediate, advanced]
+ *                 description: User's experience level (junior only)
+ *               portfolio:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                 description: List of portfolio links (max 5, junior only)
  *     responses:
  *       200:
  *         description: User updated successfully
@@ -126,17 +136,78 @@ router.get('/:id', getUserById);
  *         description: Server error
  */
 router.put(
-  '/:id',
+  "/:id",
   authenticate,
   authorizeOwn,
   [
-    body('name').optional().notEmpty().withMessage('Name cannot be empty'),
-    body('bio').optional(),
-    body('skills').optional().isArray().withMessage('Skills must be an array'),
-    body('profilePicture')
+    body("name").optional().notEmpty().withMessage("Name cannot be empty"),
+    body("bio").optional(),
+    body("skills")
       .optional()
-      .isURL()
-      .withMessage('Profile picture must be a valid URL'),
+      .isArray()
+      .withMessage("Skills must be an array")
+      .custom((value) => {
+        if (value && value.length > 10) {
+          throw new Error("Maximum 10 skills allowed");
+        }
+        return true;
+      }),
+    body("profilePicture")
+      .optional()
+      .custom((value) => {
+        // Allow empty string or null, or validate as URL
+        if (!value || value === "") {
+          return true;
+        }
+        // Simple URL regex to validate
+        const urlPattern = new RegExp(
+          "^(https?:\\/\\/)?" + // protocol
+            "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name
+            "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+            "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+            "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+            "(\\#[-a-z\\d_]*)?$",
+          "i"
+        ); // fragment locator
+        return urlPattern.test(value) || new Error("Must be a valid URL");
+      })
+      .withMessage("Profile picture must be a valid URL"),
+    body("experienceLevel")
+      .optional()
+      .isIn(["beginner", "intermediate", "advanced"])
+      .withMessage(
+        "Experience level must be beginner, intermediate, or advanced"
+      ),
+    body("portfolio")
+      .optional()
+      .isArray()
+      .withMessage("Portfolio must be an array")
+      .custom((value) => {
+        if (value && value.length > 5) {
+          throw new Error("Maximum 5 portfolio links allowed");
+        }
+        return true;
+      }),
+    body("portfolio.*")
+      .optional()
+      .custom((value) => {
+        // Allow empty string or null, or validate as URL
+        if (!value || value === "") {
+          return true;
+        }
+        // Simple URL regex to validate
+        const urlPattern = new RegExp(
+          "^(https?:\\/\\/)?" + // protocol
+            "((([a-z\\d]([a-z\\d-]*[a-z\\d])*)\\.)+[a-z]{2,}|" + // domain name
+            "((\\d{1,3}\\.){3}\\d{1,3}))" + // OR ip (v4) address
+            "(\\:\\d+)?(\\/[-a-z\\d%_.~+]*)*" + // port and path
+            "(\\?[;&a-z\\d%_.~+=-]*)?" + // query string
+            "(\\#[-a-z\\d_]*)?$",
+          "i"
+        ); // fragment locator
+        return urlPattern.test(value) || new Error("Must be a valid URL");
+      })
+      .withMessage("Portfolio links must be valid URLs"),
   ],
   updateUser
 );
@@ -168,7 +239,7 @@ router.put(
  *       500:
  *         description: Server error
  */
-router.delete('/:id', authenticate, authorize(['admin']), deleteUser);
+router.delete("/:id", authenticate, authorize(["admin"]), deleteUser);
 
 /**
  * @swagger
@@ -191,7 +262,7 @@ router.delete('/:id', authenticate, authorize(['admin']), deleteUser);
  *       500:
  *         description: Server error
  */
-router.get('/:id/projects', getUserProjects);
+router.get("/:id/projects", getUserProjects);
 
 /**
  * @swagger
@@ -220,6 +291,11 @@ router.get('/:id/projects', getUserProjects);
  *       500:
  *         description: Server error
  */
-router.get('/:id/applications', authenticate, authorizeOwn, getUserApplications);
+router.get(
+  "/:id/applications",
+  authenticate,
+  authorizeOwn,
+  getUserApplications
+);
 
-export default router; 
+export default router;
