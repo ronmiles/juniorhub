@@ -7,6 +7,7 @@ import {
   updateProject,
   deleteProject,
   getProjectApplications,
+  toggleLike,
 } from "../controllers/projectsController";
 import { createApplication } from "../controllers/applicationController";
 import {
@@ -422,5 +423,30 @@ router.post(
   ],
   createApplication
 );
+
+/**
+ * @swagger
+ * /api/projects/{id}/like:
+ *   post:
+ *     summary: Toggle like on a project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *     responses:
+ *       200:
+ *         description: Like toggled successfully
+ *       401:
+ *         description: Not authorized
+ *       404:
+ *         description: Project not found
+ *       500:
+ *         description: Server error
+ */
+router.post("/:id/like", authenticate, toggleLike);
 
 export default router;

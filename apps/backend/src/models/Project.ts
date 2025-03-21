@@ -10,6 +10,7 @@ type MongooseProject = Omit<
   company: mongoose.Types.ObjectId;
   applications?: mongoose.Types.ObjectId[];
   selectedDeveloper?: mongoose.Types.ObjectId;
+  userLikes?: mongoose.Types.ObjectId[];
   isAcceptingApplications: boolean;
 };
 
@@ -102,6 +103,12 @@ const ProjectSchema = new Schema<ProjectDocument>(
       type: Number,
       default: 0,
     },
+    userLikes: [
+      {
+        type: mongoose.Schema.Types.ObjectId,
+        ref: "User",
+      },
+    ],
     isAcceptingApplications: {
       type: Boolean,
       default: true,

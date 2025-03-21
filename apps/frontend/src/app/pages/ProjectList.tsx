@@ -3,6 +3,7 @@ import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import { getFullImageUrl } from "../utils/imageUtils";
+import LikeButton from "../components/LikeButton";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -330,10 +331,11 @@ const ProjectList = () => {
                         <i className="far fa-user"></i>{" "}
                         {project.applicants?.length || 0} applicants
                       </span>
-                      <span className="text-sm text-gray-500">
-                        <i className="far fa-heart"></i> {project.likes || 0}{" "}
-                        likes
-                      </span>
+                      <LikeButton
+                        projectId={project._id}
+                        initialLikes={project.likes || 0}
+                        initialUserHasLiked={project.hasLiked || false}
+                      />
                     </div>
                     {project._id ? (
                       <Link
