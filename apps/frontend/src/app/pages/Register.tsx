@@ -3,12 +3,14 @@ import { Link, useNavigate } from 'react-router-dom';
 import { useAuth } from '../hooks/useAuth';
 import { useFormik } from 'formik';
 import * as Yup from 'yup';
+import axios from 'axios';
 
 const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
 
 const Register = () => {
-  const { register, error } = useAuth();
+  const { error: authError } = useAuth();
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const navigate = useNavigate();
 
   // Form validation schema
@@ -25,7 +27,10 @@ const Register = () => {
       .matches(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
         'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-      )
+      ),
+    confirmPassword: Yup.string()
+      .oneOf([Yup.ref('password')], 'Passwords must match')
+      .required('Confirm password is required')
   });
 
   // Initialize formik
@@ -34,20 +39,42 @@ const Register = () => {
       name: '',
       email: '',
       password: '',
-      role: ''
+      confirmPassword: ''
     },
     validationSchema,
     onSubmit: async (values) => {
       setIsSubmitting(true);
+      setError(null);
+      
       try {
-        await register(
-          values.name,
-          values.email,
-          values.password,
-        );
-        navigate('/dashboard');
-      } catch (err) {
-        // Error is handled by useAuth hook
+        // Call the registration API directly
+        const response = await axios.post(`${API_URL}/auth/register`, {
+          name: values.name,
+          email: values.email,
+          password: values.password
+        });
+        
+        if (response.data.success) {
+          // Extract user data from response
+          console.log({ response })
+          const { id, email, name } = response.data.data.user;
+          
+          // Navigate to complete registration with user data
+          navigate('/register/complete', {
+            state: {
+              userData: {
+                userId: id,
+                email,
+                name
+              }
+            }
+          });
+        } else {
+          setError(response.data.error || 'Registration failed');
+        }
+      } catch (err: any) {
+        console.error('Registration error:', err.response?.data || err.message);
+        setError(err.response?.data?.error || 'Registration failed. Please try again.');
       } finally {
         setIsSubmitting(false);
       }
@@ -63,9 +90,9 @@ const Register = () => {
     <div className="max-w-md mx-auto my-10 p-6 bg-white rounded-lg shadow-md">
       <h1 className="text-2xl font-bold text-center mb-6">Create your account</h1>
       
-      {error && (
+      {(error || authError) && (
         <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
-          {error}
+          {error || authError}
         </div>
       )}
       
@@ -148,6 +175,33 @@ const Register = () => {
           />
           {formik.touched.password && formik.errors.password && (
             <div className="mt-1 text-sm text-red-500">{formik.errors.password}</div>
+          )}
+        </div>
+        
+        {/* Confirm Password field */}
+        <div className="mb-4">
+          <label 
+            htmlFor="confirmPassword" 
+            className="block text-gray-700 text-sm font-medium mb-2"
+          >
+            Confirm Password
+          </label>
+          <input
+            id="confirmPassword"
+            name="confirmPassword"
+            type="password"
+            placeholder="••••••••"
+            className={`w-full px-3 py-2 border ${
+              formik.touched.confirmPassword && formik.errors.confirmPassword 
+                ? 'border-red-500' 
+                : 'border-gray-300'
+            } rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500`}
+            onChange={formik.handleChange}
+            onBlur={formik.handleBlur}
+            value={formik.values.confirmPassword}
+          />
+          {formik.touched.confirmPassword && formik.errors.confirmPassword && (
+            <div className="mt-1 text-sm text-red-500">{formik.errors.confirmPassword}</div>
           )}
         </div>
         

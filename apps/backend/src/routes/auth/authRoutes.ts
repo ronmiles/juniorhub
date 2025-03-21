@@ -6,6 +6,7 @@ import {
   refreshToken,
   logout,
   getCurrentUser,
+  completeRegister,
 } from "../../controllers/auth/authController";
 import { authenticate } from "../../middleware/auth";
 
@@ -60,7 +61,7 @@ router.post(
   register
 );
 
-router.post("/register/complete", register)
+router.post("/register/complete", completeRegister)
 
 /**
  * @swagger
