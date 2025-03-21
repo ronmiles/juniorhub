@@ -241,7 +241,7 @@ const Dashboard = () => {
                   )}
                   <div className="mt-2 flex items-center">
                     <Link
-                      to={`/projects/${application.project.id}`}
+                      to={`/projects/${application.project._id}`}
                       className="ml-auto text-sm text-rose-500 hover:text-rose-700"
                     >
                       View Project →
