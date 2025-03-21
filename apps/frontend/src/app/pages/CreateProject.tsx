@@ -9,12 +9,43 @@ import axios from "axios";
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
+// AI Sparkle Icon Component
+const AISparkleIcon = () => (
+  <svg
+    className="w-4 h-4 inline-block ml-1 text-purple-500"
+    fill="none"
+    stroke="currentColor"
+    viewBox="0 0 24 24"
+    xmlns="http://www.w3.org/2000/svg"
+  >
+    <path
+      strokeLinecap="round"
+      strokeLinejoin="round"
+      strokeWidth={2}
+      d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z"
+    />
+  </svg>
+);
+
 const CreateProject = () => {
   const { user } = useAuth();
   const navigate = useNavigate();
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { enhanceProject, isEnhancing, error: aiError } = useAiEnhancement();
+
+  // Track which fields have been enhanced by AI
+  const [enhancedFields, setEnhancedFields] = useState<{
+    description: boolean;
+    requirements: boolean;
+    skillsRequired: boolean;
+    tags: boolean;
+  }>({
+    description: false,
+    requirements: false,
+    skillsRequired: false,
+    tags: false,
+  });
 
   // Validation schema for project creation
   const validationSchema = Yup.object({
@@ -108,12 +139,19 @@ const CreateProject = () => {
       // Update form values if we got valid data back
       if (enhancedData) {
         console.log("Updating form with enhanced data");
+
+        // Track which fields are being enhanced
+        const fieldsEnhanced = { ...enhancedFields };
+
+        // Update description
         formik.setFieldValue("description", enhancedData.enhancedDescription);
+        fieldsEnhanced.description = true;
 
         // Update tags
         if (enhancedData.tags && enhancedData.tags.length > 0) {
           // Replace tags with the new ones from AI
           formik.setFieldValue("tags", enhancedData.tags);
+          fieldsEnhanced.tags = true;
         }
 
         // Update skills
@@ -123,13 +161,18 @@ const CreateProject = () => {
         ) {
           // Replace skills with the new ones from AI
           formik.setFieldValue("skillsRequired", enhancedData.requiredSkills);
+          fieldsEnhanced.skillsRequired = true;
         }
 
         // Update requirements
         if (enhancedData.requirements && enhancedData.requirements.length > 0) {
           // Replace requirements with the new ones from AI
           formik.setFieldValue("requirements", enhancedData.requirements);
+          fieldsEnhanced.requirements = true;
         }
+
+        // Update enhanced fields state
+        setEnhancedFields(fieldsEnhanced);
 
         // Display success message
         setError(null);
@@ -192,7 +235,8 @@ const CreateProject = () => {
                 htmlFor="description"
                 className="block text-sm font-medium text-gray-700 mb-1"
               >
-                Project Description *
+                Project Description *{" "}
+                {enhancedFields.description && <AISparkleIcon />}
               </label>
               <textarea
                 id="description"
@@ -270,7 +314,8 @@ const CreateProject = () => {
             {/* Requirements field array */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Project Requirements *
+                Project Requirements *{" "}
+                {enhancedFields.requirements && <AISparkleIcon />}
               </label>
               <FieldArray
                 name="requirements"
@@ -394,7 +439,8 @@ const CreateProject = () => {
             {/* Skills field array */}
             <div className="mb-4">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Skills Required *
+                Skills Required *{" "}
+                {enhancedFields.skillsRequired && <AISparkleIcon />}
               </label>
               <FieldArray
                 name="skillsRequired"
@@ -457,7 +503,7 @@ const CreateProject = () => {
             {/* Tags field array */}
             <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
-                Tags (Optional)
+                Tags (Optional) {enhancedFields.tags && <AISparkleIcon />}
               </label>
               <FieldArray
                 name="tags"
