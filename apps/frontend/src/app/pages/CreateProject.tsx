@@ -72,7 +72,7 @@ const CreateProject = () => {
         
         if (response.data.success) {
           // Navigate to the newly created project
-          navigate(`/projects/${response.data.data.project.id}`);
+          navigate(`/projects/${response.data.data.project._id}`);
         } else {
           setError(response.data.error || 'Failed to create project');
         }

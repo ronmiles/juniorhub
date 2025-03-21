@@ -14,9 +14,9 @@ interface TokenPayload {
  * @param role - User role to include in JWT payload
  * @returns Object containing access and refresh tokens
  */
-export const generateTokens = (userId: string): AuthTokens => {
+export const generateTokens = (userId: string, role?: string): AuthTokens => {
   // Generate access token
-  const accessToken = jwt.sign({ userId }, config.jwtSecret as Secret, {
+  const accessToken = jwt.sign({ userId, role }, config.jwtSecret as Secret, {
     expiresIn: config.jwtExpiresIn,
   });
 
