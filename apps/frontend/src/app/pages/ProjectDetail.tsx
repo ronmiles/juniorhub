@@ -1,18 +1,18 @@
-import { useState, useEffect } from 'react';
-import { useParams, Link, useNavigate } from 'react-router-dom';
-import { useAuth } from '../hooks/useAuth';
-import axios from 'axios';
-import { useFormik } from 'formik';
-import * as Yup from 'yup';
+import { useState, useEffect } from "react";
+import { useParams, Link, useNavigate } from "react-router-dom";
+import { useAuth } from "../hooks/useAuth";
+import axios from "axios";
+import { useFormik } from "formik";
+import * as Yup from "yup";
 
 // API base URL
-const API_URL = import.meta.env.VITE_API_URL || 'http://localhost:3000/api';
+const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const { user } = useAuth();
   const navigate = useNavigate();
-  
+
   const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -27,43 +27,54 @@ const ProjectDetail = () => {
     const fetchProjectDetails = async () => {
       setIsLoading(true);
       setError(null);
-      
+
       try {
         // Fetch project
         const projectResponse = await axios.get(`${API_URL}/projects/${id}`);
-        
+
         if (projectResponse.data.success) {
-          setProject(projectResponse.data.data.project);
-          
+          const projectData = projectResponse.data.data.project;
+          setProject(projectData);
+
           // Check if user has already applied
-          if (user && user.role === 'junior') {
-            if (projectResponse.data.data.project.applicants?.includes(user.id)) {
+          if (user && user.role === "junior") {
+            if (projectData.applications?.includes(user.id)) {
               setHasApplied(true);
             }
           }
-          
+
           // If user is the company owner, fetch applications
-          if (user && (user.role === 'company' || user.role === 'admin') && 
-              (user.id === projectResponse.data.data.project.company.id || user.role === 'admin')) {
+          if (
+            user &&
+            (user.role === "company" || user.role === "admin") &&
+            ((projectData.company && user.id === projectData.company.id) ||
+              user.role === "admin")
+          ) {
             try {
-              const applicationsResponse = await axios.get(`${API_URL}/projects/${id}/applications`);
+              const applicationsResponse = await axios.get(
+                `${API_URL}/projects/${id}/applications`
+              );
               if (applicationsResponse.data.success) {
                 setApplications(applicationsResponse.data.data.applications);
               }
             } catch (err) {
-              console.error('Failed to fetch applications:', err);
+              console.error("Failed to fetch applications:", err);
             }
           }
         } else {
-          setError(projectResponse.data.error || 'Failed to fetch project details');
+          setError(
+            projectResponse.data.error || "Failed to fetch project details"
+          );
         }
       } catch (err: any) {
-        setError(err.response?.data?.error || 'Failed to fetch project details');
+        setError(
+          err.response?.data?.error || "Failed to fetch project details"
+        );
       } finally {
         setIsLoading(false);
       }
     };
-    
+
     if (id) {
       fetchProjectDetails();
     }
@@ -72,43 +83,65 @@ const ProjectDetail = () => {
   // Application form validation schema
   const applicationValidationSchema = Yup.object({
     coverLetter: Yup.string()
-      .required('Cover letter is required')
-      .min(50, 'Cover letter must be at least 50 characters'),
+      .required("Cover letter is required")
+      .min(50, "Cover letter must be at least 50 characters"),
     submissionLink: Yup.string()
-      .url('Please enter a valid URL')
+      .nullable()
+      .transform((value) => (value === "" ? null : value))
+      .test("is-url-or-empty", "Please enter a valid URL", (value) => {
+        if (!value) return true;
+        try {
+          new URL(value);
+          return true;
+        } catch (err) {
+          return false;
+        }
+      }),
   });
 
   // Initialize formik for application form
   const formik = useFormik({
     initialValues: {
-      coverLetter: '',
-      submissionLink: ''
+      coverLetter: "",
+      submissionLink: "",
     },
     validationSchema: applicationValidationSchema,
     onSubmit: async (values) => {
       if (!user) {
-        navigate('/login');
+        navigate("/login");
         return;
       }
-      
+
       setIsSubmitting(true);
       setSubmitError(null);
-      
+
+      // Create a new object to avoid modifying the original values
+      const submissionData = {
+        ...values,
+        submissionLink: values.submissionLink.trim() || null,
+      };
+
       try {
-        const response = await axios.post(`${API_URL}/projects/${id}/apply`, values);
-        
+        const response = await axios.post(
+          `${API_URL}/projects/${id}/apply`,
+          submissionData
+        );
+
         if (response.data.success) {
           setHasApplied(true);
           setShowApplyForm(false);
         } else {
-          setSubmitError(response.data.error || 'Failed to submit application');
+          setSubmitError(response.data.error || "Failed to submit application");
         }
       } catch (err: any) {
-        setSubmitError(err.response?.data?.error || 'Failed to submit application');
+        console.error("Application error:", err.response?.data);
+        setSubmitError(
+          err.response?.data?.error || "Failed to submit application"
+        );
       } finally {
         setIsSubmitting(false);
       }
-    }
+    },
   });
 
   if (isLoading) {
@@ -122,13 +155,17 @@ const ProjectDetail = () => {
   if (error || !project) {
     return (
       <div className="p-6 bg-red-100 text-red-700 rounded-md">
-        {error || 'Project not found'}
+        {error || "Project not found"}
       </div>
     );
   }
 
-  const isProjectOwner = user && user.role === 'company' && user.id === project.company.id;
-  const isProjectOpen = project.status === 'open';
+  const isProjectOwner =
+    user &&
+    user.role === "company" &&
+    project.company &&
+    (user.id === project.company.id || user.id === project.company._id);
+  const isProjectOpen = project.status === "open";
 
   return (
     <div>
@@ -140,22 +177,24 @@ const ProjectDetail = () => {
         <span className="mx-2">/</span>
         <span className="text-gray-700">{project.title}</span>
       </div>
-      
+
       {/* Project header */}
       <div className="flex justify-between items-start mb-6">
         <div>
           <h1 className="text-3xl font-bold">{project.title}</h1>
           <div className="flex items-center mt-2">
-            <span className={`px-2 py-1 text-xs rounded-full ${
-              project.status === 'open' 
-                ? 'bg-green-100 text-green-800' 
-                : project.status === 'in-progress' 
-                ? 'bg-rose-100 text-rose-600' 
-                : project.status === 'completed' 
-                ? 'bg-gray-100 text-gray-800' 
-                : 'bg-rose-100 text-rose-600'
-            }`}>
-              {project.status.replace('-', ' ').toUpperCase()}
+            <span
+              className={`px-2 py-1 text-xs rounded-full ${
+                project.status === "open"
+                  ? "bg-green-100 text-green-800"
+                  : project.status === "in-progress"
+                  ? "bg-rose-100 text-rose-600"
+                  : project.status === "completed"
+                  ? "bg-gray-100 text-gray-800"
+                  : "bg-rose-100 text-rose-600"
+              }`}
+            >
+              {project.status.replace("-", " ").toUpperCase()}
             </span>
             <span className="ml-4 text-sm text-gray-500">
               Posted on {new Date(project.createdAt).toLocaleDateString()}
@@ -166,22 +205,22 @@ const ProjectDetail = () => {
           {isProjectOwner && (
             <div className="flex gap-2">
               <Link
-                to={`/projects/${project.id}/edit`}
+                to={`/projects/${project.id || project._id}/edit`}
                 className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition"
               >
                 Edit Project
               </Link>
               {isProjectOpen && (
                 <Link
-                  to={`/projects/${project.id}/applications`}
+                  to={`/projects/${project.id || project._id}/applications`}
                   className="px-4 py-2 border border-rose-500 text-rose-500 rounded-md hover:bg-rose-50 transition"
                 >
-                  View Applications ({project.applicants?.length || 0})
+                  View Applications ({project.applications?.length || 0})
                 </Link>
               )}
             </div>
           )}
-          {user && user.role === 'junior' && isProjectOpen && !hasApplied && (
+          {user && user.role === "junior" && isProjectOpen && !hasApplied && (
             <button
               onClick={() => setShowApplyForm(true)}
               className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition"
@@ -189,49 +228,57 @@ const ProjectDetail = () => {
               Apply for Project
             </button>
           )}
-          {user && user.role === 'junior' && isProjectOpen && hasApplied && (
+          {user && user.role === "junior" && isProjectOpen && hasApplied && (
             <span className="px-4 py-2 bg-gray-100 text-gray-600 rounded-md">
               Application Submitted
             </span>
           )}
         </div>
       </div>
-      
+
       {/* Main content */}
       <div className="grid grid-cols-1 md:grid-cols-3 gap-8">
         {/* Project details */}
         <div className="md:col-span-2">
           <div className="bg-white p-6 rounded-lg shadow-md mb-8">
             <h2 className="text-xl font-semibold mb-4">Project Description</h2>
-            <p className="text-gray-700 whitespace-pre-line">{project.description}</p>
+            <p className="text-gray-700 whitespace-pre-line">
+              {project.description}
+            </p>
           </div>
-          
+
           {project.requirements && project.requirements.length > 0 && (
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
               <h2 className="text-xl font-semibold mb-4">Requirements</h2>
               <ul className="list-disc pl-5 space-y-2">
-                {project.requirements.map((requirement: string, index: number) => (
-                  <li key={index} className="text-gray-700">{requirement}</li>
-                ))}
+                {project.requirements.map(
+                  (requirement: string, index: number) => (
+                    <li key={index} className="text-gray-700">
+                      {requirement}
+                    </li>
+                  )
+                )}
               </ul>
             </div>
           )}
-          
+
           {/* Application form */}
           {showApplyForm && (
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-              <h2 className="text-xl font-semibold mb-4">Apply for this Project</h2>
-              
+              <h2 className="text-xl font-semibold mb-4">
+                Apply for this Project
+              </h2>
+
               {submitError && (
                 <div className="mb-4 p-3 bg-red-100 text-red-700 rounded-md">
                   {submitError}
                 </div>
               )}
-              
+
               <form onSubmit={formik.handleSubmit}>
                 <div className="mb-4">
-                  <label 
-                    htmlFor="coverLetter" 
+                  <label
+                    htmlFor="coverLetter"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
                     Cover Letter
@@ -243,21 +290,23 @@ const ProjectDetail = () => {
                     placeholder="Explain why you're interested in this project and why you're a good fit..."
                     className={`w-full px-3 py-2 border ${
                       formik.touched.coverLetter && formik.errors.coverLetter
-                        ? 'border-red-500'
-                        : 'border-gray-300'
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500`}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     value={formik.values.coverLetter}
                   ></textarea>
                   {formik.touched.coverLetter && formik.errors.coverLetter && (
-                    <div className="mt-1 text-sm text-red-500">{formik.errors.coverLetter}</div>
+                    <div className="mt-1 text-sm text-red-500">
+                      {formik.errors.coverLetter}
+                    </div>
                   )}
                 </div>
-                
+
                 <div className="mb-6">
-                  <label 
-                    htmlFor="submissionLink" 
+                  <label
+                    htmlFor="submissionLink"
                     className="block text-sm font-medium text-gray-700 mb-1"
                   >
                     Submission Link (Optional)
@@ -268,19 +317,23 @@ const ProjectDetail = () => {
                     type="text"
                     placeholder="e.g. GitHub repository or portfolio link"
                     className={`w-full px-3 py-2 border ${
-                      formik.touched.submissionLink && formik.errors.submissionLink
-                        ? 'border-red-500'
-                        : 'border-gray-300'
+                      formik.touched.submissionLink &&
+                      formik.errors.submissionLink
+                        ? "border-red-500"
+                        : "border-gray-300"
                     } rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500`}
                     onChange={formik.handleChange}
                     onBlur={formik.handleBlur}
                     value={formik.values.submissionLink}
                   />
-                  {formik.touched.submissionLink && formik.errors.submissionLink && (
-                    <div className="mt-1 text-sm text-red-500">{formik.errors.submissionLink}</div>
-                  )}
+                  {formik.touched.submissionLink &&
+                    formik.errors.submissionLink && (
+                      <div className="mt-1 text-sm text-red-500">
+                        {formik.errors.submissionLink}
+                      </div>
+                    )}
                 </div>
-                
+
                 <div className="flex justify-end gap-2">
                   <button
                     type="button"
@@ -293,20 +346,22 @@ const ProjectDetail = () => {
                     type="submit"
                     disabled={isSubmitting}
                     className={`px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition ${
-                      isSubmitting ? 'opacity-70 cursor-not-allowed' : ''
+                      isSubmitting ? "opacity-70 cursor-not-allowed" : ""
                     }`}
                   >
-                    {isSubmitting ? 'Submitting...' : 'Submit Application'}
+                    {isSubmitting ? "Submitting..." : "Submit Application"}
                   </button>
                 </div>
               </form>
             </div>
           )}
-          
+
           {/* Applications list for project owner */}
           {isProjectOwner && applications.length > 0 && (
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
-              <h2 className="text-xl font-semibold mb-4">Applications ({applications.length})</h2>
+              <h2 className="text-xl font-semibold mb-4">
+                Applications ({applications.length})
+              </h2>
               <div className="divide-y divide-gray-200">
                 {applications.map((application) => (
                   <div key={application.id} className="py-4">
@@ -314,8 +369,8 @@ const ProjectDetail = () => {
                       <div className="flex items-center">
                         <div className="w-10 h-10 bg-gray-200 rounded-full flex items-center justify-center mr-3">
                           {application.applicant.profilePicture ? (
-                            <img 
-                              src={application.applicant.profilePicture} 
+                            <img
+                              src={application.applicant.profilePicture}
                               alt={application.applicant.name}
                               className="w-10 h-10 rounded-full"
                             />
@@ -326,19 +381,26 @@ const ProjectDetail = () => {
                           )}
                         </div>
                         <div>
-                          <h3 className="font-medium">{application.applicant.name}</h3>
+                          <h3 className="font-medium">
+                            {application.applicant.name}
+                          </h3>
                           <p className="text-sm text-gray-500">
-                            Applied on {new Date(application.createdAt).toLocaleDateString()}
+                            Applied on{" "}
+                            {new Date(
+                              application.createdAt
+                            ).toLocaleDateString()}
                           </p>
                         </div>
                       </div>
-                      <span className={`px-2 py-1 text-xs rounded-full ${
-                        application.status === 'pending'
-                          ? 'bg-yellow-100 text-yellow-800'
-                          : application.status === 'accepted'
-                          ? 'bg-green-100 text-green-800'
-                          : 'bg-red-100 text-red-800'
-                      }`}>
+                      <span
+                        className={`px-2 py-1 text-xs rounded-full ${
+                          application.status === "pending"
+                            ? "bg-yellow-100 text-yellow-800"
+                            : application.status === "accepted"
+                            ? "bg-green-100 text-green-800"
+                            : "bg-red-100 text-red-800"
+                        }`}
+                      >
                         {application.status.toUpperCase()}
                       </span>
                     </div>
@@ -356,7 +418,7 @@ const ProjectDetail = () => {
             </div>
           )}
         </div>
-        
+
         {/* Sidebar */}
         <div className="md:col-span-1">
           {/* Company info */}
@@ -364,77 +426,95 @@ const ProjectDetail = () => {
             <h2 className="text-lg font-semibold mb-4">About the Company</h2>
             <div className="flex items-center mb-4">
               <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
-                {project.company.profilePicture ? (
-                  <img 
-                    src={project.company.profilePicture} 
+                {project.company && project.company.profilePicture ? (
+                  <img
+                    src={project.company.profilePicture}
                     alt={project.company.name}
                     className="w-12 h-12 rounded-full"
                   />
                 ) : (
                   <span className="text-gray-500 text-lg">
-                    {project.company.name.charAt(0)}
+                    {project.company ? project.company.name.charAt(0) : "?"}
                   </span>
                 )}
               </div>
               <div>
-                <h3 className="font-medium">{project.company.name}</h3>
+                <h3 className="font-medium">
+                  {project.company ? project.company.name : "Unknown Company"}
+                </h3>
                 <p className="text-sm text-gray-500">
-                  Member since {new Date(project.company.createdAt).toLocaleDateString()}
+                  {project.company ? "Member since " : ""}
+                  {project.company && project.company.createdAt
+                    ? new Date(project.company.createdAt).toLocaleDateString()
+                    : project.company
+                    ? "N/A"
+                    : ""}
                 </p>
               </div>
             </div>
-            {project.company.bio && (
+            {project.company && project.company.bio && (
               <p className="text-gray-700 text-sm">{project.company.bio}</p>
             )}
           </div>
-          
+
           {/* Project details sidebar */}
           <div className="bg-white p-6 rounded-lg shadow-md mb-6">
             <h2 className="text-lg font-semibold mb-4">Project Details</h2>
-            
+
             <div className="space-y-4">
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Timeline</h3>
                 <p className="mt-1">
-                  {new Date(project.timeframe.startDate).toLocaleDateString()} - {new Date(project.timeframe.endDate).toLocaleDateString()}
+                  {new Date(project.timeframe.startDate).toLocaleDateString()} -{" "}
+                  {new Date(project.timeframe.endDate).toLocaleDateString()}
                 </p>
               </div>
-              
+
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Skills Required</h3>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Skills Required
+                </h3>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {project.skillsRequired && project.skillsRequired.map((skill: string, index: number) => (
-                    <span 
-                      key={index}
-                      className="bg-rose-50 text-rose-700 px-2 py-1 text-xs rounded-md"
-                    >
-                      {skill}
-                    </span>
-                  ))}
+                  {project.skillsRequired &&
+                    project.skillsRequired.map(
+                      (skill: string, index: number) => (
+                        <span
+                          key={index}
+                          className="bg-rose-50 text-rose-700 px-2 py-1 text-xs rounded-md"
+                        >
+                          {skill}
+                        </span>
+                      )
+                    )}
                 </div>
               </div>
-              
+
               <div>
                 <h3 className="text-sm font-medium text-gray-500">Tags</h3>
                 <div className="mt-1 flex flex-wrap gap-2">
-                  {project.tags && project.tags.map((tag: string, index: number) => (
-                    <span 
-                      key={index}
-                      className="bg-gray-100 text-gray-700 px-2 py-1 text-xs rounded-md"
-                    >
-                      {tag}
-                    </span>
-                  ))}
+                  {project.tags &&
+                    project.tags.map((tag: string, index: number) => (
+                      <span
+                        key={index}
+                        className="bg-gray-100 text-gray-700 px-2 py-1 text-xs rounded-md"
+                      >
+                        {tag}
+                      </span>
+                    ))}
                 </div>
               </div>
-              
+
               <div>
-                <h3 className="text-sm font-medium text-gray-500">Applications</h3>
-                <p className="mt-1">{project.applicants?.length || 0} applicants</p>
+                <h3 className="text-sm font-medium text-gray-500">
+                  Applications
+                </h3>
+                <p className="mt-1">
+                  {project.applications?.length || 0} applicants
+                </p>
               </div>
             </div>
           </div>
-          
+
           {/* Similar projects */}
           <div className="bg-white p-6 rounded-lg shadow-md">
             <h2 className="text-lg font-semibold mb-4">Similar Projects</h2>
@@ -448,4 +528,4 @@ const ProjectDetail = () => {
   );
 };
 
-export default ProjectDetail; 
+export default ProjectDetail;

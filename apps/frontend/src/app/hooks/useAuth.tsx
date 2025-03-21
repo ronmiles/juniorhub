@@ -25,6 +25,31 @@ const AuthContext = createContext<AuthContextType | undefined>(undefined);
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
+// Helper function to normalize user object from API responses
+const normalizeUser = (userData: any): User => {
+  if (!userData) return userData;
+
+  // Create a new object with the necessary properties
+  return {
+    // If _id exists but id doesn't, use _id as id
+    id: userData.id || userData._id,
+    name: userData.name,
+    email: userData.email,
+    role: userData.role,
+    profilePicture: userData.profilePicture,
+    bio: userData.bio,
+    skills: userData.skills,
+    projects: userData.projects,
+    applications: userData.applications,
+    portfolio: userData.portfolio,
+    experienceLevel: userData.experienceLevel,
+    createdAt: userData.createdAt,
+    updatedAt: userData.updatedAt,
+    // Include any other needed properties
+    ...(userData.accessToken && { accessToken: userData.accessToken }),
+  };
+};
+
 export const AuthProvider = ({ children }: { children: ReactNode }) => {
   const [user, setUser] = useState<User | null>(null);
   const [isLoading, setIsLoading] = useState(true);
@@ -44,7 +69,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
           const response = await axios.get(`${API_URL}/auth/me`);
 
           if (response.data.success) {
-            setUser(response.data.data.user);
+            setUser(normalizeUser(response.data.data.user));
           } else {
             // If token is invalid, clear it
             localStorage.removeItem("accessToken");
@@ -81,7 +106,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
                 const userResponse = await axios.get(`${API_URL}/auth/me`);
 
                 if (userResponse.data.success) {
-                  setUser(userResponse.data.data.user);
+                  setUser(normalizeUser(userResponse.data.data.user));
                 }
               } else {
                 // If refresh token is invalid, clear tokens
@@ -135,7 +160,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ] = `Bearer ${tokens.accessToken}`;
 
         // Set user
-        setUser(user);
+        setUser(normalizeUser(user));
       } else {
         setError(response.data.error || "Login failed");
       }
@@ -172,7 +197,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ] = `Bearer ${tokens.accessToken}`;
 
         // Set user
-        setUser(user);
+        setUser(normalizeUser(user));
       } else {
         setError(response.data.error || "Registration failed");
       }
@@ -206,7 +231,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         ] = `Bearer ${tokens.accessToken}`;
 
         // Set user
-        setUser(user);
+        setUser(normalizeUser(user));
       } else {
         setError(response.data.error || "Google login failed");
       }

@@ -1,13 +1,18 @@
-import express from 'express';
-import { body } from 'express-validator';
-import { authenticate, authorize, juniorOnly, companyOnly } from '../middleware/auth';
+import express from "express";
+import { body } from "express-validator";
+import {
+  authenticate,
+  authorize,
+  juniorOnly,
+  companyOnly,
+} from "../middleware/auth";
 import {
   getApplications,
   getApplicationById,
   updateApplication,
   deleteApplication,
-  submitWork
-} from '../controllers/applicationController';
+  submitWork,
+} from "../controllers/applicationController";
 
 const router = express.Router();
 
@@ -72,7 +77,7 @@ const router = express.Router();
  *                         limit:
  *                           type: integer
  */
-router.get('/', authenticate, getApplications);
+router.get("/", authenticate, getApplications);
 
 /**
  * @swagger
@@ -105,7 +110,67 @@ router.get('/', authenticate, getApplications);
  *                     application:
  *                       $ref: '#/components/schemas/Application'
  */
-router.get('/:id', authenticate, getApplicationById);
+router.get("/:id", authenticate, getApplicationById);
+
+/**
+ * @swagger
+ * /api/applications/{id}:
+ *   patch:
+ *     summary: Update an application status (approve/reject)
+ *     tags: [Applications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Application ID
+ *     requestBody:
+ *       required: true
+ *       content:
+ *         application/json:
+ *           schema:
+ *             type: object
+ *             required:
+ *               - status
+ *             properties:
+ *               status:
+ *                 type: string
+ *                 enum: [approved, rejected]
+ *               feedback:
+ *                 type: string
+ *     responses:
+ *       200:
+ *         description: Application status updated successfully
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     application:
+ *                       $ref: '#/components/schemas/Application'
+ */
+router.patch(
+  "/:id",
+  authenticate,
+  companyOnly,
+  [
+    body("status")
+      .notEmpty()
+      .withMessage("Status is required")
+      .isIn(["approved", "rejected"])
+      .withMessage("Status must be either approved or rejected"),
+    body("feedback").optional().trim(),
+  ],
+  updateApplication
+);
 
 /**
  * @swagger
@@ -151,14 +216,14 @@ router.get('/:id', authenticate, getApplicationById);
  *                       $ref: '#/components/schemas/Application'
  */
 router.put(
-  '/:id',
+  "/:id",
   authenticate,
   [
-    body('status')
+    body("status")
       .optional()
-      .isIn(['pending', 'accepted', 'rejected'])
-      .withMessage('Invalid status value'),
-    body('feedback').optional().trim(),
+      .isIn(["pending", "accepted", "rejected"])
+      .withMessage("Invalid status value"),
+    body("feedback").optional().trim(),
   ],
   updateApplication
 );
@@ -191,7 +256,7 @@ router.put(
  *                 message:
  *                   type: string
  */
-router.delete('/:id', authenticate, juniorOnly, deleteApplication);
+router.delete("/:id", authenticate, juniorOnly, deleteApplication);
 
 /**
  * @swagger
@@ -237,15 +302,15 @@ router.delete('/:id', authenticate, juniorOnly, deleteApplication);
  *                       $ref: '#/components/schemas/Application'
  */
 router.post(
-  '/:id/submit',
+  "/:id/submit",
   authenticate,
   juniorOnly,
   [
-    body('submissionLink')
+    body("submissionLink")
       .isURL()
-      .withMessage('Submission link must be a valid URL'),
+      .withMessage("Submission link must be a valid URL"),
   ],
   submitWork
 );
 
-export default router; 
+export default router;

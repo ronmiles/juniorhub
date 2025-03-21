@@ -23,7 +23,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const { name, email, password } = req.body;
+    const { name, email, password, role = "junior" } = req.body;
 
     const existingUser = await User.findOne({ email });
 
@@ -43,6 +43,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       name,
       email,
       password: hashedPassword,
+      role,
     };
 
     const user = new User(userData);
@@ -61,6 +62,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       id: user._id,
       name: user.name,
       email: user.email,
+      role: user.role,
     };
 
     res.status(201).json({
@@ -345,7 +347,11 @@ export const getCurrentUser = async (
           role: user.role,
           profilePicture: user.profilePicture,
           bio: user.bio,
-          skills: user.skills,
+          skills: user.skills || [],
+          portfolio: user.portfolio || [],
+          experienceLevel: user.experienceLevel,
+          createdAt: user.createdAt,
+          updatedAt: user.updatedAt,
         },
       },
     });
