@@ -25,10 +25,7 @@ const Register = () => {
       .matches(
         /^(?=.*[a-z])(?=.*[A-Z])(?=.*\d)/,
         'Password must contain at least one uppercase letter, one lowercase letter, and one number'
-      ),
-    role: Yup.string()
-      .required('Please select a role')
-      .oneOf(['junior', 'company'], 'Invalid role')
+      )
   });
 
   // Initialize formik
@@ -47,7 +44,6 @@ const Register = () => {
           values.name,
           values.email,
           values.password,
-          values.role as 'junior' | 'company'
         );
         navigate('/dashboard');
       } catch (err) {
@@ -152,54 +148,6 @@ const Register = () => {
           />
           {formik.touched.password && formik.errors.password && (
             <div className="mt-1 text-sm text-red-500">{formik.errors.password}</div>
-          )}
-        </div>
-        
-        {/* Role selection */}
-        <div className="mb-6">
-          <label className="block text-gray-700 text-sm font-medium mb-2">
-            I am a:
-          </label>
-          <div className="flex space-x-4">
-            <div className="flex items-center">
-              <input
-                id="role-junior"
-                name="role"
-                type="radio"
-                value="junior"
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                checked={formik.values.role === 'junior'}
-                className="h-4 w-4 text-rose-500 focus:ring-rose-500 border-gray-300"
-              />
-              <label 
-                htmlFor="role-junior"
-                className="ml-2 block text-sm text-gray-700"
-              >
-                Junior Developer
-              </label>
-            </div>
-            <div className="flex items-center">
-              <input
-                id="role-company"
-                name="role"
-                type="radio"
-                value="company"
-                onChange={formik.handleChange}
-                onBlur={formik.handleBlur}
-                checked={formik.values.role === 'company'}
-                className="h-4 w-4 text-rose-500 focus:ring-rose-500 border-gray-300"
-              />
-              <label 
-                htmlFor="role-company"
-                className="ml-2 block text-sm text-gray-700"
-              >
-                Company
-              </label>
-            </div>
-          </div>
-          {formik.touched.role && formik.errors.role && (
-            <div className="mt-1 text-sm text-red-500">{formik.errors.role}</div>
           )}
         </div>
         

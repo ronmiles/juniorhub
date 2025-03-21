@@ -22,18 +22,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
-    const {
-      name,
-      email,
-      password,
-      role,
-      portfolio,
-      skills,
-      experienceLevel,
-      companyName,
-      website,
-      industry,
-    } = req.body;
+    const { name, email, password } = req.body;
 
     const existingUser = await User.findOne({ email });
 
@@ -50,18 +39,18 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       name,
       email,
       password,
-      role,
+      // role,
     };
 
-    if (role === "junior") {
-      userData["portfolio"] = portfolio || [];
-      userData["skills"] = skills || [];
-      userData["experienceLevel"] = experienceLevel;
-    } else if (role === "company") {
-      userData["companyName"] = companyName;
-      userData["website"] = website || "";
-      userData["industry"] = industry;
-    }
+    // if (role === "junior") {
+    //   userData["portfolio"] = portfolio || [];
+    //   userData["skills"] = skills || [];
+    //   userData["experienceLevel"] = experienceLevel;
+    // } else if (role === "company") {
+    //   userData["companyName"] = companyName;
+    //   userData["website"] = website || "";
+    //   userData["industry"] = industry;
+    // }
 
     const user = new User(userData);
     await user.save();
