@@ -1,23 +1,24 @@
-import { Request, Response } from 'express';
-import { validationResult } from 'express-validator';
-import User from '../models/User';
-import { generateTokens } from '../utils/jwt';
-import config from '../config/config';
-import axios from 'axios';
-import mongoose from 'mongoose';
+import { Request, Response } from "express";
+import User from "../../models/User";
+import { generateTokens } from "../../utils/jwt";
+import axios from "axios";
+import { FRONTEND_URL, LOGIN_PATH, OAUTH_CALLBACK_PATH, DASHBOARD_PATH } from "../../utils/constants";
 
 /**
  * Complete OAuth signup with role selection
  * @route POST /api/auth/complete-oauth-signup
  * @access Public
  */
-export const completeOAuthSignup = async (req: Request, res: Response): Promise<void> => {
+export const completeOAuthSignup = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    console.log('Received OAuth completion request:', req.body);
-    
-    const { 
-      userId, 
-      provider, 
+    console.log("Received OAuth completion request:", req.body);
+
+    const {
+      userId,
+      provider,
       role,
       email,
       name,
@@ -28,114 +29,114 @@ export const completeOAuthSignup = async (req: Request, res: Response): Promise<
       // Company specific fields
       companyName,
       website,
-      industry 
+      industry,
     } = req.body;
 
     // Validate required fields
     if (!userId || !provider || !role || !email || !name) {
       res.status(400).json({
         success: false,
-        error: 'Missing required fields (userId, provider, role, email, name)'
+        error: "Missing required fields (userId, provider, role, email, name)",
       });
       return;
     }
 
     // Validate role
-    if (!['junior', 'company'].includes(role)) {
+    if (!["junior", "company"].includes(role)) {
       res.status(400).json({
         success: false,
-        error: 'Invalid role. Must be either "junior" or "company"'
+        error: 'Invalid role. Must be either "junior" or "company"',
       });
       return;
     }
 
     // Validate role-specific required fields
-    if (role === 'junior' && !experienceLevel) {
+    if (role === "junior" && !experienceLevel) {
       res.status(400).json({
         success: false,
-        error: 'Experience level is required for junior users'
+        error: "Experience level is required for junior users",
       });
       return;
     }
 
-    if (role === 'company' && !companyName) {
+    if (role === "company" && !companyName) {
       res.status(400).json({
         success: false,
-        error: 'Company name is required for company users'
+        error: "Company name is required for company users",
       });
       return;
     }
 
     console.log(`Looking for user with ${provider}Id: ${userId}`);
-    
+
     // Find user by provider ID or email (as fallback)
     let user;
     const query: any = { $or: [{ email }] };
-    
-    if (provider === 'google') {
+
+    if (provider === "google") {
       query.$or.push({ googleId: userId });
     }
-    
+
     user = await User.findOne(query);
-    console.log('User search result:', user ? 'Found' : 'Not found');
+    console.log("User search result:", user ? "Found" : "Not found");
 
     // If user doesn't exist, create a new one
     if (!user) {
-      console.log('Creating new user');
-      
+      console.log("Creating new user");
+
       // Create new user
       const userData: any = {
         name,
         email,
         role,
-        password: null // No password for OAuth users
+        password: null, // No password for OAuth users
       };
-      
+
       // Add provider-specific ID
-      if (provider === 'google') {
+      if (provider === "google") {
         userData.googleId = userId;
       }
-      
+
       // Add role-specific fields
-      if (role === 'junior') {
+      if (role === "junior") {
         userData.experienceLevel = experienceLevel;
         userData.skills = skills || [];
         userData.portfolio = portfolio ? [portfolio] : [];
-      } else if (role === 'company') {
+      } else if (role === "company") {
         userData.companyName = companyName;
-        userData.website = website || '';
+        userData.website = website || "";
         userData.industry = industry;
       }
-      
+
       user = new User(userData);
     } else {
-      console.log('Updating existing user');
-      
+      console.log("Updating existing user");
+
       // Update existing user with provider ID if not set
-      if (provider === 'google' && !user.googleId) {
+      if (provider === "google" && !user.googleId) {
         user.googleId = userId;
       }
-      
+
       // Update user with role and role-specific fields
       user.role = role;
-      
-      if (role === 'junior') {
+
+      if (role === "junior") {
         user.experienceLevel = experienceLevel;
         user.skills = skills || [];
         user.portfolio = portfolio ? [portfolio] : [];
-      } else if (role === 'company') {
+      } else if (role === "company") {
         user.companyName = companyName;
-        user.website = website || '';
+        user.website = website || "";
         user.industry = industry;
       }
     }
 
     // Save user
     await user.save();
-    console.log('User saved successfully');
+    console.log("User saved successfully");
 
     // Generate tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
+    const tokens = generateTokens(user._id.toString());
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -151,17 +152,17 @@ export const completeOAuthSignup = async (req: Request, res: Response): Promise<
     };
 
     // Add role-specific fields to response
-    if (user.role === 'junior') {
+    if (user.role === "junior") {
       Object.assign(userData, {
         portfolio: user.portfolio,
         skills: user.skills,
-        experienceLevel: user.experienceLevel
+        experienceLevel: user.experienceLevel,
       });
-    } else if (user.role === 'company') {
+    } else if (user.role === "company") {
       Object.assign(userData, {
         companyName: user.companyName,
         website: user.website,
-        industry: user.industry
+        industry: user.industry,
       });
     }
 
@@ -169,14 +170,14 @@ export const completeOAuthSignup = async (req: Request, res: Response): Promise<
       success: true,
       data: {
         user: userData,
-        tokens
-      }
+        tokens,
+      },
     });
   } catch (error) {
-    console.error('Error in completeOAuthSignup:', error);
+    console.error("Error in completeOAuthSignup:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error'
+      error: "Server error",
     });
   }
 };
@@ -186,10 +187,13 @@ export const completeOAuthSignup = async (req: Request, res: Response): Promise<
  * @route POST /api/auth/google
  * @access Public
  */
-export const googleAuth = async (req: Request, res: Response): Promise<void> => {
+export const googleAuth = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
   try {
-    const { 
-      token, 
+    const {
+      token,
       role,
       // Junior specific fields
       portfolio,
@@ -198,13 +202,13 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       // Company specific fields
       companyName,
       website,
-      industry 
+      industry,
     } = req.body;
 
     if (!token) {
       res.status(400).json({
         success: false,
-        error: 'Google token is required',
+        error: "Google token is required",
       });
       return;
     }
@@ -217,7 +221,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
     if (!googleResponse.data) {
       res.status(400).json({
         success: false,
-        error: 'Invalid Google token',
+        error: "Invalid Google token",
       });
       return;
     }
@@ -240,30 +244,31 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
         // Send specific guidance for how to complete signup
         res.status(400).json({
           success: false,
-          error: 'Role is required for new users',
+          error: "Role is required for new users",
           isNewUser: true,
-          message: 'You need to complete your profile by selecting a role (junior or company) and providing required information',
+          message:
+            "You need to complete your profile by selecting a role (junior or company) and providing required information",
           nextSteps: {
             junior: {
-              required: ['role', 'experienceLevel'],
-              optional: ['portfolio', 'skills']
+              required: ["role", "experienceLevel"],
+              optional: ["portfolio", "skills"],
             },
             company: {
-              required: ['role', 'companyName', 'industry'],
-              optional: ['website']
-            }
+              required: ["role", "companyName", "industry"],
+              optional: ["website"],
+            },
           },
           profileData: {
             email,
             name,
-            googleId
-          }
+            googleId,
+          },
         });
         return;
       }
 
       // Validate role
-      if (!['junior', 'company'].includes(role)) {
+      if (!["junior", "company"].includes(role)) {
         res.status(400).json({
           success: false,
           error: 'Invalid role. Must be either "junior" or "company"',
@@ -272,18 +277,18 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       }
 
       // Validate role-specific required fields
-      if (role === 'junior' && !experienceLevel) {
+      if (role === "junior" && !experienceLevel) {
         res.status(400).json({
           success: false,
-          error: 'Experience level is required for junior users',
+          error: "Experience level is required for junior users",
         });
         return;
       }
-  
-      if (role === 'company' && !companyName) {
+
+      if (role === "company" && !companyName) {
         res.status(400).json({
           success: false,
-          error: 'Company name is required for company users',
+          error: "Company name is required for company users",
         });
         return;
       }
@@ -298,13 +303,13 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       };
 
       // Add role-specific fields
-      if (role === 'junior') {
+      if (role === "junior") {
         userData.portfolio = portfolio || [];
         userData.skills = skills || [];
         userData.experienceLevel = experienceLevel;
-      } else if (role === 'company') {
+      } else if (role === "company") {
         userData.companyName = companyName;
-        userData.website = website || '';
+        userData.website = website || "";
         userData.industry = industry;
       }
 
@@ -314,7 +319,7 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
     }
 
     // Generate tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
+    const tokens = generateTokens(user._id.toString());
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -330,17 +335,17 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
     };
 
     // Add role-specific fields to response
-    if (user.role === 'junior') {
+    if (user.role === "junior") {
       Object.assign(userData, {
         portfolio: user.portfolio,
         skills: user.skills,
-        experienceLevel: user.experienceLevel
+        experienceLevel: user.experienceLevel,
       });
-    } else if (user.role === 'company') {
+    } else if (user.role === "company") {
       Object.assign(userData, {
         companyName: user.companyName,
         website: user.website,
-        industry: user.industry
+        industry: user.industry,
       });
     }
 
@@ -349,14 +354,85 @@ export const googleAuth = async (req: Request, res: Response): Promise<void> => 
       data: {
         user: userData,
         tokens,
-        isNewUser
+        isNewUser,
       },
     });
   } catch (error) {
-    console.error('Error in googleAuth:', error);
+    console.error("Error in googleAuth:", error);
     res.status(500).json({
       success: false,
-      error: 'Server error',
+      error: "Server error",
     });
   }
+};
+
+export const googleCallback = async (req, res) => {
+  console.log("Google callback received:", req.user);
+
+  // Use type assertion to any first to handle different user object structures
+  const user = req.user as any;
+  // Check if user needs to select a role
+  if (!user.role || user.needsRoleSelection) {
+    // Make sure we have Google data
+    if (!user.googleProfile) {
+      console.log("Missing Google profile data");
+      return res.redirect(
+        `${FRONTEND_URL}${LOGIN_PATH}?error=missing_google_data`
+      );
+    }
+
+    // Create a structured URL with user data for role selection
+    const params = new URLSearchParams({
+      provider: "google",
+      userId: user.googleProfile.id, // Use googleProfile.id as userId
+      email: user.googleProfile.email,
+      name: user.googleProfile.name,
+    });
+
+    // Add profile picture if available
+    if (user.googleProfile.picture) {
+      params.append("picture", user.googleProfile.picture);
+    }
+
+    console.log(
+      "Redirecting to OAuth callback with params:",
+      params.toString()
+    );
+    return res.redirect(
+      `${FRONTEND_URL}${OAUTH_CALLBACK_PATH}?${params.toString()}`
+    );
+  }
+
+  // User already has a role, generate tokens
+  const tokens = generateTokens(user.userId || user._id.toString());
+
+  // Save refresh token
+  if (user.save) {
+    user.refreshToken = tokens.refreshToken;
+    user
+      .save()
+      .catch((err: any) => console.error("Error saving refresh token:", err));
+  }
+
+  // Determine dashboard based on role
+  const dashboardUrl = `${FRONTEND_URL}${DASHBOARD_PATH}`;
+
+  const user2 = await User.findById(user._id ?? user.userId).lean();
+  // Include tokens in redirect
+  console.error("user2", { user2 });
+  console.error("user2._id", user2?._id?.toString());
+  const redirectParams = new URLSearchParams({
+    userId: user2?._id?.toString() ?? user.userId ?? "",
+    name: user2?.name ?? "",
+    email: user2?.email ?? "",
+    role: user2?.role ?? "",
+    profilePicture: user2?.profilePicture ?? "",
+    accessToken: tokens.accessToken,
+    refreshToken: tokens.refreshToken,
+  });
+
+  console.log("Redirecting authenticated user to dashboard", {
+    url: `${dashboardUrl}?${redirectParams.toString()}`,
+  });
+  res.redirect(`${dashboardUrl}?${redirectParams.toString()}`);
 };

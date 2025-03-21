@@ -14,6 +14,7 @@ import CreateProject from './pages/CreateProject';
 import Profile from './pages/Profile';
 import NotFound from './pages/NotFound';
 import OAuthCallback from './pages/OAuthCallback';
+import CompleteRegistration from './pages/CompleteRegistration';
 
 // Import components (we'll create these later)
 import Layout from './components/Layout';
@@ -32,6 +33,7 @@ export function App() {
             <Route index element={<Home />} />
             <Route path="login" element={<Login />} />
             <Route path="register" element={<Register />} />
+            <Route path="register/complete" element={<CompleteRegistration />} />
             <Route path="oauth-callback" element={<OAuthCallback />} />
             <Route path="projects" element={<ProjectList />} />
             <Route path="projects/:id" element={<ProjectDetail />} />

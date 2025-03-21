@@ -6,7 +6,7 @@ interface AuthContextType {
   user: User | null;
   isLoading: boolean;
   login: (email: string, password: string) => Promise<void>;
-  register: (name: string, email: string, password: string, role: 'junior' | 'company') => Promise<void>;
+  register: (name: string, email: string, password: string) => Promise<void>;
   googleLogin: (token: string) => Promise<void>;
   logout: () => void;
   error: string | null;
@@ -120,13 +120,14 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
+      throw err;
     } finally {
       setIsLoading(false);
     }
   };
 
   // Register function
-  const register = async (name: string, email: string, password: string, role: 'junior' | 'company') => {
+  const register = async (name: string, email: string, password: string) => {
     setIsLoading(true);
     setError(null);
     
@@ -135,7 +136,6 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
         name,
         email,
         password,
-        role,
       });
       
       if (response.data.success) {

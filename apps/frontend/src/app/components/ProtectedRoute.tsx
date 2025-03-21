@@ -13,6 +13,7 @@ const ProtectedRoute = ({ children, roles }: ProtectedRouteProps) => {
 
   const tryToSetUser = () => {
     const params = new URLSearchParams(location.search);
+
     const userId = params.get('userId');
     const email = params.get('email');
     const name = params.get('name');

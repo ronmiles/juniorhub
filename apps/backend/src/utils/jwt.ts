@@ -1,7 +1,7 @@
-import jwt, { Secret } from 'jsonwebtoken';
-import config from '../config/config';
-import { AuthTokens } from '@juniorhub/types';
-import ms from 'ms';
+import jwt, { Secret } from "jsonwebtoken";
+import config from "../config/config";
+import { AuthTokens } from "@juniorhub/types";
+import ms from "ms";
 // Define the payload structure for JWT
 interface TokenPayload {
   userId: string;
@@ -14,20 +14,16 @@ interface TokenPayload {
  * @param role - User role to include in JWT payload
  * @returns Object containing access and refresh tokens
  */
-export const generateTokens = (userId: string, role: string): AuthTokens => { 
+export const generateTokens = (userId: string): AuthTokens => {
   // Generate access token
-  const accessToken = jwt.sign(
-    { userId, role },
-    config.jwtSecret as Secret,
-    { expiresIn: config.jwtExpiresIn }
-  );
+  const accessToken = jwt.sign({ userId }, config.jwtSecret as Secret, {
+    expiresIn: config.jwtExpiresIn,
+  });
 
   // Generate refresh token
-  const refreshToken = jwt.sign(
-    { userId },
-    config.jwtRefreshSecret as Secret,
-    { expiresIn: config.jwtRefreshExpiresIn }
-  );
+  const refreshToken = jwt.sign({ userId }, config.jwtRefreshSecret as Secret, {
+    expiresIn: config.jwtRefreshExpiresIn,
+  });
 
   return {
     accessToken,
@@ -42,7 +38,10 @@ export const generateTokens = (userId: string, role: string): AuthTokens => {
  */
 export const verifyAccessToken = (token: string): TokenPayload | null => {
   try {
-    const decoded = jwt.verify(token, config.jwtSecret as Secret) as TokenPayload;
+    const decoded = jwt.verify(
+      token,
+      config.jwtSecret as Secret
+    ) as TokenPayload;
     return decoded;
   } catch (error) {
     return null;
@@ -54,9 +53,13 @@ export const verifyAccessToken = (token: string): TokenPayload | null => {
  * @param token - JWT refresh token to verify
  * @returns Decoded token payload if valid, null otherwise
  */
-export const verifyRefreshToken = (token: string): { userId: string } | null => {
+export const verifyRefreshToken = (
+  token: string
+): { userId: string } | null => {
   try {
-    const decoded = jwt.verify(token, config.jwtRefreshSecret as Secret) as { userId: string };
+    const decoded = jwt.verify(token, config.jwtRefreshSecret as Secret) as {
+      userId: string;
+    };
     return decoded;
   } catch (error) {
     return null;
@@ -69,19 +72,22 @@ export const verifyRefreshToken = (token: string): { userId: string } | null => 
  * @param role - User role
  * @returns New access token if refresh token is valid, null otherwise
  */
-export const refreshAccessToken = (refreshToken: string, role: string): string | null => {
+export const refreshAccessToken = (
+  refreshToken: string,
+  role: string
+): string | null => {
   const decoded = verifyRefreshToken(refreshToken);
-  
+
   if (!decoded) {
     return null;
   }
-  
+
   // Generate new access token
   const accessToken = jwt.sign(
     { userId: decoded.userId, role },
     config.jwtSecret as Secret,
     { expiresIn: config.jwtExpiresIn }
   );
-  
+
   return accessToken;
-}; 
+};
