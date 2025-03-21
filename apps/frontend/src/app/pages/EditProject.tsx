@@ -5,6 +5,8 @@ import { useAiEnhancement } from "../hooks/useAiEnhancement";
 import { useFormik, FieldArray, FormikProvider } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
+import ImageUpload from "../components/ImageUpload";
+import { getFullImageUrl } from "../utils/imageUtils";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -36,6 +38,13 @@ const EditProject = () => {
   const [error, setError] = useState<string | null>(null);
   const [success, setSuccess] = useState<string | null>(null);
   const { enhanceProject, isEnhancing, error: aiError } = useAiEnhancement();
+
+  // State for image management
+  const [existingImages, setExistingImages] = useState<string[]>([]);
+  const [imagesToRemove, setImagesToRemove] = useState<string[]>([]);
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   // Track which fields have been enhanced by AI
   const [enhancedFields, setEnhancedFields] = useState<{
@@ -103,7 +112,63 @@ const EditProject = () => {
       setSuccess(null);
 
       try {
-        const response = await axios.put(`${API_URL}/projects/${id}`, values);
+        // Create a FormData object to handle file uploads
+        const formData = new FormData();
+
+        // Add all form values to the FormData
+        formData.append("title", values.title);
+        formData.append("description", values.description);
+
+        // Add arrays with indexed keys
+        values.requirements.forEach((req, index) => {
+          formData.append(`requirements[${index}]`, req);
+        });
+
+        // Add timeframe as separate fields
+        formData.append("timeframe[startDate]", values.timeframe.startDate);
+        formData.append("timeframe[endDate]", values.timeframe.endDate);
+
+        // Add skills and tags
+        values.skillsRequired.forEach((skill, index) => {
+          formData.append(`skillsRequired[${index}]`, skill);
+        });
+
+        values.tags.forEach((tag, index) => {
+          formData.append(`tags[${index}]`, tag);
+        });
+
+        // Add status
+        formData.append("status", values.status);
+
+        // Add images to keep (those not in imagesToRemove)
+        const imagesToKeep = existingImages.filter(
+          (img) => !imagesToRemove.includes(img)
+        );
+
+        // Add existing images to keep
+        imagesToKeep.forEach((image, index) => {
+          formData.append(`existingImages[${index}]`, image);
+        });
+
+        // Add new images
+        selectedImages.forEach((image) => {
+          formData.append("projectImages", image);
+        });
+
+        // Add images to remove
+        imagesToRemove.forEach((image, index) => {
+          formData.append(`imagesToRemove[${index}]`, image);
+        });
+
+        const response = await axios.put(
+          `${API_URL}/projects/${id}`,
+          formData,
+          {
+            headers: {
+              "Content-Type": "multipart/form-data",
+            },
+          }
+        );
 
         if (response.data.success) {
           setSuccess("Project updated successfully");
@@ -160,6 +225,15 @@ const EditProject = () => {
             tags: project.tags?.length > 0 ? project.tags : [""],
             status: project.status || "open",
           });
+
+          // Set existing images if available
+          if (
+            project.images &&
+            Array.isArray(project.images) &&
+            project.images.length > 0
+          ) {
+            setExistingImages(project.images);
+          }
         } else {
           setError("Failed to load project data");
         }
@@ -237,6 +311,47 @@ const EditProject = () => {
     }
   };
 
+  // Handle image selection for new uploads
+  const handleImagesSelected = (files: File[]) => {
+    setImageUploadError(null);
+
+    // Create previews for the newly selected images
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
+
+    // Update state with new files and previews
+    setSelectedImages((prevImages) => [...prevImages, ...files]);
+    setImagePreviews((prevPreviews) => [...prevPreviews, ...newPreviews]);
+  };
+
+  // Handle removing a new image
+  const handleNewImageRemove = (index: number) => {
+    // Remove the image and its preview at the given index
+    setSelectedImages((prevImages) => {
+      const updatedImages = [...prevImages];
+      updatedImages.splice(index, 1);
+      return updatedImages;
+    });
+
+    setImagePreviews((prevPreviews) => {
+      // Revoke the object URL to prevent memory leaks
+      URL.revokeObjectURL(prevPreviews[index]);
+
+      const updatedPreviews = [...prevPreviews];
+      updatedPreviews.splice(index, 1);
+      return updatedPreviews;
+    });
+  };
+
+  // Handle removing an existing image
+  const handleExistingImageRemove = (imageUrl: string) => {
+    setImagesToRemove((prev) => [...prev, imageUrl]);
+  };
+
+  // Filter out existing images that are marked for removal
+  const displayedExistingImages = existingImages.filter(
+    (img) => !imagesToRemove.includes(img)
+  );
+
   if (isLoading) {
     return (
       <div className="flex justify-center items-center h-64">
@@ -276,7 +391,6 @@ const EditProject = () => {
                 id="title"
                 name="title"
                 type="text"
-                placeholder="e.g. Build a Landing Page with React"
                 className={`w-full px-3 py-2 border ${
                   formik.touched.title && formik.errors.title
                     ? "border-red-500"
@@ -306,7 +420,6 @@ const EditProject = () => {
                 id="description"
                 name="description"
                 rows={6}
-                placeholder="Describe your project in detail..."
                 className={`w-full px-3 py-2 border ${
                   formik.touched.description && formik.errors.description
                     ? "border-red-500"
@@ -327,10 +440,10 @@ const EditProject = () => {
                 type="button"
                 onClick={handleEnhanceWithAI}
                 disabled={isEnhancing}
-                className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center"
+                className="mt-2 px-3 py-1 text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none flex items-center"
               >
                 {isEnhancing ? (
-                  <>
+                  <span className="flex items-center">
                     <svg
                       className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                       xmlns="http://www.w3.org/2000/svg"
@@ -352,91 +465,150 @@ const EditProject = () => {
                       ></path>
                     </svg>
                     Enhancing...
-                  </>
+                  </span>
                 ) : (
                   <>
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                      />
-                    </svg>
-                    Enhance with AI
+                    <AISparkleIcon /> Enhance with AI
                   </>
                 )}
               </button>
             </div>
 
+            {/* Existing Project Images */}
+            {displayedExistingImages.length > 0 && (
+              <div className="mb-6">
+                <label className="block text-sm font-medium text-gray-700 mb-2">
+                  Current Project Images
+                </label>
+                <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+                  {displayedExistingImages.map((imageUrl, index) => (
+                    <div key={index} className="relative group">
+                      <div className="aspect-video overflow-hidden rounded-md border border-gray-200">
+                        <img
+                          src={getFullImageUrl(imageUrl)}
+                          alt={`Project image ${index + 1}`}
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <button
+                        type="button"
+                        onClick={() => handleExistingImageRemove(imageUrl)}
+                        className="absolute top-2 right-2 bg-red-500 text-white rounded-full p-1 opacity-0 group-hover:opacity-100 transition-opacity"
+                        aria-label="Remove image"
+                      >
+                        <svg
+                          className="h-4 w-4"
+                          fill="none"
+                          stroke="currentColor"
+                          viewBox="0 0 24 24"
+                          xmlns="http://www.w3.org/2000/svg"
+                        >
+                          <path
+                            strokeLinecap="round"
+                            strokeLinejoin="round"
+                            strokeWidth={2}
+                            d="M6 18L18 6M6 6l12 12"
+                          />
+                        </svg>
+                      </button>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+
+            {/* Upload New Images */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-1">
+                Add New Images
+              </label>
+              <ImageUpload
+                images={selectedImages}
+                previews={imagePreviews}
+                onImagesSelected={handleImagesSelected}
+                onImageRemove={handleNewImageRemove}
+                error={imageUploadError}
+              />
+            </div>
+
             {/* Requirements field array */}
             <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label
+                htmlFor="requirements"
+                className="block text-sm font-medium text-gray-700 mb-1"
+              >
                 Project Requirements *{" "}
                 {enhancedFields.requirements && <AISparkleIcon />}
               </label>
-              <FieldArray
-                name="requirements"
-                render={(arrayHelpers) => (
-                  <div className="space-y-2">
-                    {formik.values.requirements.map((_, index) => (
-                      <div key={index} className="flex items-center gap-2">
+              <FieldArray name="requirements">
+                {({ remove, push }) => (
+                  <div>
+                    {formik.values.requirements.map((requirement, index) => (
+                      <div key={index} className="flex items-center mb-2">
                         <input
+                          id={`requirements.${index}`}
                           name={`requirements.${index}`}
                           type="text"
-                          placeholder="e.g. Must be responsive for all devices"
-                          className={`flex-grow px-3 py-2 border ${
-                            formik.touched.requirements &&
-                            (formik.touched.requirements as any)[index] &&
+                          className={`w-full px-3 py-2 border ${
+                            Array.isArray(formik.touched.requirements) &&
+                            formik.touched.requirements[index] &&
                             Array.isArray(formik.errors.requirements) &&
                             formik.errors.requirements[index]
                               ? "border-red-500"
                               : "border-gray-300"
-                          } rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500`}
+                          } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
                           onChange={formik.handleChange}
                           onBlur={formik.handleBlur}
-                          value={formik.values.requirements[index]}
+                          value={requirement}
                         />
-                        <button
-                          type="button"
-                          onClick={() => arrayHelpers.remove(index)}
-                          className="p-2 text-red-500 hover:text-red-700"
-                          disabled={formik.values.requirements.length <= 1}
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
+                        {formik.values.requirements.length > 1 && (
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            className="ml-2 p-2 text-red-500 hover:text-red-700"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     ))}
-
                     <button
                       type="button"
-                      onClick={() => arrayHelpers.push("")}
-                      className="mt-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
+                      onClick={() => push("")}
+                      className="mt-2 text-sm text-blue-500 hover:text-blue-700 flex items-center"
                     >
-                      + Add Requirement
+                      <svg
+                        className="h-4 w-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Add Requirement
                     </button>
                   </div>
                 )}
-              />
+              </FieldArray>
             </div>
 
             {/* Timeframe fields */}
@@ -651,7 +823,7 @@ const EditProject = () => {
             </div>
 
             {/* Submit buttons */}
-            <div className="flex justify-end gap-2">
+            <div className="flex justify-end mt-6 gap-2">
               <button
                 type="button"
                 onClick={() => navigate(`/projects/${id}`)}
@@ -662,9 +834,7 @@ const EditProject = () => {
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition ${
-                  isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-                }`}
+                className="px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition"
               >
                 {isSubmitting ? (
                   <span className="flex items-center">
@@ -688,10 +858,10 @@ const EditProject = () => {
                         d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
                       ></path>
                     </svg>
-                    Updating...
+                    Saving...
                   </span>
                 ) : (
-                  "Update Project"
+                  "Save Changes"
                 )}
               </button>
             </div>

@@ -4,6 +4,7 @@ import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { getFullImageUrl } from "../utils/imageUtils";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -247,6 +248,26 @@ const ProjectDetail = () => {
             </p>
           </div>
 
+          {/* Project Images */}
+          {project.images && project.images.length > 0 && (
+            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+              <h2 className="text-xl font-semibold mb-4">Project Images</h2>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {project.images.map((imageUrl: string, index: number) => (
+                  <div key={index} className="relative">
+                    <div className="aspect-video overflow-hidden rounded-md border border-gray-200">
+                      <img
+                        src={getFullImageUrl(imageUrl)}
+                        alt={`Project image ${index + 1}`}
+                        className="w-full h-full object-cover"
+                      />
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          )}
+
           {project.requirements && project.requirements.length > 0 && (
             <div className="bg-white p-6 rounded-lg shadow-md mb-8">
               <h2 className="text-xl font-semibold mb-4">Requirements</h2>
@@ -428,7 +449,7 @@ const ProjectDetail = () => {
               <div className="w-12 h-12 bg-gray-200 rounded-full flex items-center justify-center mr-3">
                 {project.company && project.company.profilePicture ? (
                   <img
-                    src={project.company.profilePicture}
+                    src={getFullImageUrl(project.company.profilePicture)}
                     alt={project.company.name}
                     className="w-12 h-12 rounded-full"
                   />

@@ -15,6 +15,10 @@ import {
   companyOnly,
   juniorOnly,
 } from "../middleware/auth";
+import {
+  uploadProjectImages,
+  handleUploadError,
+} from "../middleware/uploadMiddleware";
 
 const router = express.Router();
 
@@ -179,9 +183,40 @@ router.get(
  *     requestBody:
  *       required: true
  *       content:
- *         application/json:
+ *         multipart/form-data:
  *           schema:
- *             $ref: '#/components/schemas/CreateProjectRequest'
+ *             type: object
+ *             properties:
+ *               title:
+ *                 type: string
+ *               description:
+ *                 type: string
+ *               requirements:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               timeframe:
+ *                 type: object
+ *                 properties:
+ *                   startDate:
+ *                     type: string
+ *                     format: date
+ *                   endDate:
+ *                     type: string
+ *                     format: date
+ *               skillsRequired:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               tags:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *               projectImages:
+ *                 type: array
+ *                 items:
+ *                   type: string
+ *                   format: binary
  *     responses:
  *       201:
  *         description: Project created successfully
@@ -202,6 +237,8 @@ router.post(
   "/",
   authenticate,
   companyOnly,
+  uploadProjectImages,
+  handleUploadError,
   [
     body("title").trim().notEmpty().withMessage("Title is required"),
     body("description")
@@ -263,6 +300,8 @@ router.put(
   "/:id",
   authenticate,
   companyOnly,
+  uploadProjectImages,
+  handleUploadError,
   [
     body("title")
       .optional()
