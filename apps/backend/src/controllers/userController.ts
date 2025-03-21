@@ -1,9 +1,12 @@
 import { Request, Response } from "express";
 import { validationResult } from "express-validator";
 import mongoose from "mongoose";
+import path from "path";
+import fs from "fs";
 import User from "../models/User";
 import Project from "../models/Project";
 import Application from "../models/Application";
+import { deleteProfilePicture } from "../middleware/uploadMiddleware";
 
 /**
  * Get all users (admin only)
@@ -397,6 +400,158 @@ export const getUserApplications = async (
     });
   } catch (error) {
     console.error("Error in getUserApplications:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
+
+/**
+ * Upload profile picture
+ * @route POST /api/users/:id/profile-picture
+ * @access Private (Own user)
+ */
+export const uploadProfilePicture = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.params.id;
+    console.log("Received profile picture upload request for user:", userId);
+    console.log("Request file:", req.file);
+
+    // Validate object ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      console.log("Invalid user ID:", userId);
+      res.status(400).json({
+        success: false,
+        error: "Invalid user ID",
+      });
+      return;
+    }
+
+    // Check if file was uploaded
+    if (!req.file) {
+      console.log("No file was uploaded");
+      res.status(400).json({
+        success: false,
+        error: "No file uploaded",
+      });
+      return;
+    }
+
+    // Get the user
+    const user = await User.findById(userId);
+    if (!user) {
+      console.log("User not found:", userId);
+      res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+      return;
+    }
+
+    // Get the uploaded file path
+    const filePath = req.file.path;
+    console.log("Uploaded file path:", filePath);
+
+    // Create a URL path for the file
+    const relativePath = path
+      .relative(path.join(__dirname, ".."), filePath)
+      .replace(/\\/g, "/");
+    const fileUrl = `/api/${relativePath}`;
+    console.log("File URL for database:", fileUrl);
+
+    // Delete old profile picture if it exists and is not a URL
+    if (
+      user.profilePicture &&
+      user.profilePicture.startsWith("/api/uploads/profiles/")
+    ) {
+      const oldFilePath = path.join(
+        __dirname,
+        "..",
+        user.profilePicture.replace("/api/", "")
+      );
+      console.log("Deleting old profile picture:", oldFilePath);
+      deleteProfilePicture(oldFilePath);
+    }
+
+    // Update user with new profile picture
+    user.profilePicture = fileUrl;
+    await user.save();
+    console.log("User profile updated with new picture URL:", fileUrl);
+
+    res.status(200).json({
+      success: true,
+      data: {
+        profilePicture: user.profilePicture,
+      },
+      message: "Profile picture uploaded successfully",
+    });
+  } catch (error) {
+    console.error("Error in uploadProfilePicture:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
+
+/**
+ * Delete profile picture
+ * @route DELETE /api/users/:id/profile-picture
+ * @access Private (Own user)
+ */
+export const deleteUserProfilePicture = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const userId = req.params.id;
+
+    // Validate object ID
+    if (!mongoose.Types.ObjectId.isValid(userId)) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid user ID",
+      });
+      return;
+    }
+
+    // Get the user
+    const user = await User.findById(userId);
+    if (!user) {
+      res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+      return;
+    }
+
+    // Delete profile picture file if it exists and is local
+    if (
+      user.profilePicture &&
+      user.profilePicture.startsWith("/api/uploads/profiles/")
+    ) {
+      const filePath = path.join(
+        __dirname,
+        "..",
+        user.profilePicture.replace("/api/", "")
+      );
+      deleteProfilePicture(filePath);
+    }
+
+    // Reset profile picture in DB
+    user.profilePicture = "";
+    await user.save();
+
+    res.status(200).json({
+      success: true,
+      message: "Profile picture removed successfully",
+    });
+  } catch (error) {
+    console.error("Error in deleteUserProfilePicture:", error);
     res.status(500).json({
       success: false,
       error: "Server error",
