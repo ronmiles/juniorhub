@@ -6,6 +6,15 @@ import { useAuth } from "../hooks/useAuth";
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
+// Helper function to get the full image URL
+const getFullImageUrl = (path: string) => {
+  if (!path) return "";
+  // If it's already a full URL, return it as is
+  if (path.startsWith("http")) return path;
+  // Otherwise, prepend the base URL (without the /api part)
+  return `${API_URL.replace("/api", "")}${path}`;
+};
+
 // Status options for filtering
 const STATUS_OPTIONS = [
   { value: "", label: "All Status" },
@@ -242,7 +251,7 @@ const ProjectList = () => {
                 >
                   <div className="flex justify-between items-start">
                     <Link
-                      to={`/projects/${project.id}`}
+                      to={`/projects/${project._id}`}
                       className="text-xl font-semibold text-rose-500 hover:text-rose-700"
                     >
                       {project.title}
@@ -274,7 +283,9 @@ const ProjectList = () => {
                       {project.company ? (
                         project.company.profilePicture ? (
                           <img
-                            src={project.company.profilePicture}
+                            src={getFullImageUrl(
+                              project.company.profilePicture
+                            )}
                             alt={project.company.name}
                             className="w-8 h-8 rounded-full"
                           />
