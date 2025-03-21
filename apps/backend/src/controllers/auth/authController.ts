@@ -4,7 +4,6 @@ import User from "../../models/User";
 import { generateTokens, verifyRefreshToken } from "../../utils/jwt";
 import bcrypt from "bcrypt";
 
-
 /**
  * Register a new user
  * @route POST /api/auth/register
@@ -96,6 +95,69 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       data: {
         user: returnedUserData,
         tokens,
+      },
+      message: "User registered successfully",
+    });
+  } catch (error) {
+    console.error("Register error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
+
+/**
+ * Register a new user
+ * @route POST /api/auth/register
+ * @access Public
+ */
+export const completeRegister = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const errors = validationResult(req);
+
+    if (!errors.isEmpty()) {
+      res.status(400).json({
+        success: false,
+        error: "Validation failed",
+        errors: errors.array(),
+      });
+
+      return;
+    }
+
+    const {
+      role,
+      userId,
+      portfolio,
+      skills,
+      experienceLevel,
+      companyName,
+      website,
+      industry,
+    } = req.body;
+
+    const user = await User.findById(userId);
+
+    if (role === "junior") {
+      user["portfolio"] = portfolio || [];
+      user["skills"] = skills || [];
+      user["experienceLevel"] = experienceLevel;
+    } else if (role === "company") {
+      user["companyName"] = companyName;
+      user["website"] = website || "";
+      user["industry"] = industry;
+    }
+
+    await user.save();
+
+    res.status(201).json({
+      success: true,
+      data: {
+        user
       },
       message: "User registered successfully",
     });

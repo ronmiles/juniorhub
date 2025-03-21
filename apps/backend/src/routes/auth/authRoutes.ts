@@ -60,6 +60,8 @@ router.post(
   register
 );
 
+router.post("/register/complete", register)
+
 /**
  * @swagger
  * /api/auth/login:
