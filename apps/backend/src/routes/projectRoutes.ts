@@ -1,14 +1,20 @@
-import express from 'express';
-import { body } from 'express-validator';
+import express from "express";
+import { body } from "express-validator";
 import {
   getProjects,
   getProjectById,
   createProject,
   updateProject,
   deleteProject,
-} from '../controllers/projectsController';
-import { createApplication } from '../controllers/applicationController';
-import { authenticate, authorize, companyOnly, juniorOnly } from '../middleware/auth';
+  getProjectApplications,
+} from "../controllers/projectsController";
+import { createApplication } from "../controllers/applicationController";
+import {
+  authenticate,
+  authorize,
+  companyOnly,
+  juniorOnly,
+} from "../middleware/auth";
 
 const router = express.Router();
 
@@ -83,7 +89,7 @@ const router = express.Router();
  *                         limit:
  *                           type: integer
  */
-router.get('/', getProjects);
+router.get("/", getProjects);
 
 /**
  * @swagger
@@ -114,7 +120,53 @@ router.get('/', getProjects);
  *                     project:
  *                       $ref: '#/components/schemas/Project'
  */
-router.get('/:id', getProjectById);
+router.get("/:id", getProjectById);
+
+/**
+ * @swagger
+ * /api/projects/{id}/applications:
+ *   get:
+ *     summary: Get all applications for a project
+ *     tags: [Projects, Applications]
+ *     security:
+ *       - bearerAuth: []
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *       - in: query
+ *         name: status
+ *         schema:
+ *           type: string
+ *           enum: [pending, approved, rejected]
+ *         description: Filter by application status
+ *     responses:
+ *       200:
+ *         description: List of applications for the project
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 success:
+ *                   type: boolean
+ *                 data:
+ *                   type: object
+ *                   properties:
+ *                     applications:
+ *                       type: array
+ *                       items:
+ *                         $ref: '#/components/schemas/Application'
+ */
+router.get(
+  "/:id/applications",
+  authenticate,
+  companyOnly,
+  getProjectApplications
+);
 
 /**
  * @swagger
@@ -147,22 +199,25 @@ router.get('/:id', getProjectById);
  *                       $ref: '#/components/schemas/Project'
  */
 router.post(
-  '/',
+  "/",
   authenticate,
   companyOnly,
   [
-    body('title').trim().notEmpty().withMessage('Title is required'),
-    body('description').trim().notEmpty().withMessage('Description is required'),
-    body('timeframe.startDate')
+    body("title").trim().notEmpty().withMessage("Title is required"),
+    body("description")
+      .trim()
+      .notEmpty()
+      .withMessage("Description is required"),
+    body("timeframe.startDate")
       .isISO8601()
-      .withMessage('Start date must be a valid date'),
-    body('timeframe.endDate')
+      .withMessage("Start date must be a valid date"),
+    body("timeframe.endDate")
       .isISO8601()
-      .withMessage('End date must be a valid date')
+      .withMessage("End date must be a valid date")
       .custom((value, { req }) => {
         return new Date(value) > new Date(req.body.timeframe.startDate);
       })
-      .withMessage('End date must be after start date'),
+      .withMessage("End date must be after start date"),
   ],
   createProject
 );
@@ -205,31 +260,35 @@ router.post(
  *                       $ref: '#/components/schemas/Project'
  */
 router.put(
-  '/:id',
+  "/:id",
   authenticate,
   companyOnly,
   [
-    body('title').optional().trim().notEmpty().withMessage('Title cannot be empty'),
-    body('description')
+    body("title")
       .optional()
       .trim()
       .notEmpty()
-      .withMessage('Description cannot be empty'),
-    body('timeframe.startDate')
+      .withMessage("Title cannot be empty"),
+    body("description")
+      .optional()
+      .trim()
+      .notEmpty()
+      .withMessage("Description cannot be empty"),
+    body("timeframe.startDate")
       .optional()
       .isISO8601()
-      .withMessage('Start date must be a valid date'),
-    body('timeframe.endDate')
+      .withMessage("Start date must be a valid date"),
+    body("timeframe.endDate")
       .optional()
       .isISO8601()
-      .withMessage('End date must be a valid date')
+      .withMessage("End date must be a valid date")
       .custom((value, { req }) => {
         if (req.body.timeframe && req.body.timeframe.startDate) {
           return new Date(value) > new Date(req.body.timeframe.startDate);
         }
         return true;
       })
-      .withMessage('End date must be after start date'),
+      .withMessage("End date must be after start date"),
   ],
   updateProject
 );
@@ -262,7 +321,7 @@ router.put(
  *                 message:
  *                   type: string
  */
-router.delete('/:id', authenticate, companyOnly, deleteProject);
+router.delete("/:id", authenticate, companyOnly, deleteProject);
 
 /**
  * @swagger
@@ -309,20 +368,20 @@ router.delete('/:id', authenticate, companyOnly, deleteProject);
  *                       $ref: '#/components/schemas/Application'
  */
 router.post(
-  '/:id/apply',
+  "/:id/apply",
   authenticate,
   juniorOnly,
   [
-    body('coverLetter')
+    body("coverLetter")
       .trim()
       .notEmpty()
-      .withMessage('Cover letter is required'),
-    body('submissionLink')
+      .withMessage("Cover letter is required"),
+    body("submissionLink")
       .optional()
       .isURL()
-      .withMessage('Submission link must be a valid URL'),
+      .withMessage("Submission link must be a valid URL"),
   ],
   createApplication
 );
 
-export default router; 
+export default router;

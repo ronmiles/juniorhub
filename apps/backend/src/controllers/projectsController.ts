@@ -119,6 +119,80 @@ export const getProjectById = async (
 };
 
 /**
+ * Get all applications for a specific project
+ * @route GET /api/projects/:id/applications
+ * @access Private (Project owner only)
+ */
+export const getProjectApplications = async (
+  req: Request,
+  res: Response
+): Promise<void> => {
+  try {
+    const projectId = req.params.id;
+    const userId = req.user.userId;
+
+    // Validate project ID
+    if (!mongoose.Types.ObjectId.isValid(projectId)) {
+      res.status(400).json({
+        success: false,
+        error: "Invalid project ID",
+      });
+      return;
+    }
+
+    // Check if project exists
+    const project = await Project.findById(projectId);
+    if (!project) {
+      res.status(404).json({
+        success: false,
+        error: "Project not found",
+      });
+      return;
+    }
+
+    // Verify project ownership
+    if (project.company.toString() !== userId && req.user.role !== "admin") {
+      res.status(403).json({
+        success: false,
+        error: "Unauthorized - Only the project owner can view applications",
+      });
+      return;
+    }
+
+    // Build query
+    const query: any = { project: projectId };
+
+    // Apply status filter if provided
+    if (req.query.status) {
+      query.status = req.query.status;
+    }
+
+    // Get applications with applicant details
+    const applications = await Application.find(query)
+      .populate({
+        path: "applicant",
+        select:
+          "name email profilePicture skills experienceLevel bio portfolioUrl",
+      })
+      .sort({ createdAt: -1 });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        applications,
+        count: applications.length,
+      },
+    });
+  } catch (error) {
+    console.error("Get project applications error:", error);
+    res.status(500).json({
+      success: false,
+      error: "Server error",
+    });
+  }
+};
+
+/**
  * Create a new project
  * @route POST /api/projects
  * @access Private (Companies only)
