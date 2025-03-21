@@ -311,6 +311,10 @@ export const updateProject = async (
       return;
     }
 
+    // Log entire request body for debugging
+    console.log("Update project request body:", req.body);
+    console.log("Update project request files:", req.files);
+
     // Find project
     const project = await Project.findById(req.params.id);
 
@@ -349,20 +353,40 @@ export const updateProject = async (
     // Process uploaded images if they exist
     let existingImages = project.images || [];
 
+    console.log("Original images:", existingImages);
+    console.log("Images to remove:", imagesToRemove);
+
     // Remove images if specified
-    if (imagesToRemove && Array.isArray(imagesToRemove)) {
+    if (imagesToRemove) {
+      // Handle both array and string formats from form data
+      let imagesToRemoveArray: string[] = [];
+
+      if (Array.isArray(imagesToRemove)) {
+        imagesToRemoveArray = imagesToRemove;
+      } else if (typeof imagesToRemove === "string") {
+        imagesToRemoveArray = [imagesToRemove];
+      } else if (typeof imagesToRemove === "object") {
+        // Handle when form data sends it as an object with indices as keys
+        imagesToRemoveArray = Object.values(imagesToRemove);
+      }
+
+      console.log("Processed images to remove:", imagesToRemoveArray);
+
       // Delete files from filesystem
-      imagesToRemove.forEach((imageUrl) => {
+      imagesToRemoveArray.forEach((imageUrl) => {
         const filePath = getFilePathFromUrl(imageUrl);
         if (filePath) {
+          console.log("Deleting image file:", filePath);
           deleteProjectImage(filePath);
         }
       });
 
       // Remove from the existing images array
       existingImages = existingImages.filter(
-        (img) => !imagesToRemove.includes(img)
+        (img) => !imagesToRemoveArray.includes(img)
       );
+
+      console.log("Remaining images after removal:", existingImages);
     }
 
     // Add new uploaded images

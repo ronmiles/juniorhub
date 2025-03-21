@@ -160,6 +160,13 @@ const EditProject = () => {
           formData.append(`imagesToRemove[${index}]`, image);
         });
 
+        // Debug the FormData contents
+        console.log("Images to remove:", imagesToRemove);
+        console.log("FormData entries:");
+        for (let pair of (formData as any).entries()) {
+          console.log(pair[0], pair[1]);
+        }
+
         const response = await axios.put(
           `${API_URL}/projects/${id}`,
           formData,
@@ -172,6 +179,13 @@ const EditProject = () => {
 
         if (response.data.success) {
           setSuccess("Project updated successfully");
+
+          // Update the local state with the new image list from the response
+          if (response.data.data.project.images) {
+            setExistingImages(response.data.data.project.images);
+            setImagesToRemove([]); // Clear the list of images to remove
+          }
+
           setTimeout(() => {
             navigate(`/projects/${id}`);
           }, 2000);
@@ -344,7 +358,12 @@ const EditProject = () => {
 
   // Handle removing an existing image
   const handleExistingImageRemove = (imageUrl: string) => {
-    setImagesToRemove((prev) => [...prev, imageUrl]);
+    console.log("Marking image for removal:", imageUrl);
+    setImagesToRemove((prev) => {
+      const updated = [...prev, imageUrl];
+      console.log("Updated imagesToRemove:", updated);
+      return updated;
+    });
   };
 
   // Filter out existing images that are marked for removal
