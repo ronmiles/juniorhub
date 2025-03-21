@@ -120,6 +120,7 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
       }
     } catch (err: any) {
       setError(err.response?.data?.error || 'Login failed');
+      throw err;
     } finally {
       setIsLoading(false);
     }
