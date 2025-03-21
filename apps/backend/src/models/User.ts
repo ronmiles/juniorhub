@@ -50,7 +50,6 @@ const UserSchema = new Schema<UserDocument>(
     role: {
       type: String,
       enum: ['junior', 'company', 'admin'],
-      required: [true, 'Role is required'],
     },
     profilePicture: {
       type: String,

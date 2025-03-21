@@ -136,7 +136,7 @@ export const completeOAuthSignup = async (
     console.log("User saved successfully");
 
     // Generate tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
+    const tokens = generateTokens(user._id.toString());
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -319,7 +319,7 @@ export const googleAuth = async (
     }
 
     // Generate tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
+    const tokens = generateTokens(user._id.toString());
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -404,7 +404,7 @@ export const googleCallback = async (req, res) => {
   }
 
   // User already has a role, generate tokens
-  const tokens = generateTokens(user.userId || user._id.toString(), user.role);
+  const tokens = generateTokens(user.userId || user._id.toString());
 
   // Save refresh token
   if (user.save) {

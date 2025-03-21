@@ -2,6 +2,8 @@ import { Request, Response } from "express";
 import { validationResult } from "express-validator";
 import User from "../../models/User";
 import { generateTokens, verifyRefreshToken } from "../../utils/jwt";
+import bcrypt from "bcrypt";
+
 
 /**
  * Register a new user
@@ -35,10 +37,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       return;
     }
 
+    const salt = await bcrypt.genSalt(10);
+    const hashedPassword = await bcrypt.hash(password, salt);
+
     const userData = {
       name,
       email,
-      password,
+      password: hashedPassword,
       // role,
     };
 
@@ -56,7 +61,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     await user.save();
 
     // Generate JWT tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
+    const tokens = generateTokens(user._id.toString());
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -67,23 +72,23 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       id: user._id,
       name: user.name,
       email: user.email,
-      role: user.role,
+      // role: user.role,
     };
 
-    // Add role-specific fields to response
-    if (user.role === "junior") {
-      Object.assign(returnedUserData, {
-        portfolio: user.portfolio,
-        skills: user.skills,
-        experienceLevel: user.experienceLevel,
-      });
-    } else if (user.role === "company") {
-      Object.assign(returnedUserData, {
-        companyName: user.companyName,
-        website: user.website,
-        industry: user.industry,
-      });
-    }
+    // // Add role-specific fields to response
+    // if (user.role === "junior") {
+    //   Object.assign(returnedUserData, {
+    //     portfolio: user.portfolio,
+    //     skills: user.skills,
+    //     experienceLevel: user.experienceLevel,
+    //   });
+    // } else if (user.role === "company") {
+    //   Object.assign(returnedUserData, {
+    //     companyName: user.companyName,
+    //     website: user.website,
+    //     industry: user.industry,
+    //   });
+    // }
 
     // Return success response
     res.status(201).json({
@@ -144,7 +149,7 @@ export const login = async (req: Request, res: Response): Promise<void> => {
     }
 
     // Generate JWT tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
+    const tokens = generateTokens(user._id.toString());
 
     // Save refresh token to user
     user.refreshToken = tokens.refreshToken;
@@ -214,7 +219,7 @@ export const refreshToken = async (
     }
 
     // Generate new tokens
-    const tokens = generateTokens(user._id.toString(), user.role);
+    const tokens = generateTokens(user._id.toString());
 
     // Update refresh token in database
     user.refreshToken = tokens.refreshToken;

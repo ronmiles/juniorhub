@@ -300,10 +300,7 @@ router.get(
     }
 
     // User already has a role, generate tokens
-    const tokens = generateTokens(
-      user.userId || user._id.toString(),
-      user.role
-    );
+    const tokens = generateTokens(user.userId || user._id.toString());
 
     // Save refresh token
     if (user.save) {
