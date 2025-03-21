@@ -10,14 +10,15 @@ import { generateTokens, verifyRefreshToken } from "../../utils/jwt";
  */
 export const register = async (req: Request, res: Response): Promise<void> => {
   try {
-    // Check for validation errors
     const errors = validationResult(req);
+
     if (!errors.isEmpty()) {
       res.status(400).json({
         success: false,
         error: "Validation failed",
         errors: errors.array(),
       });
+
       return;
     }
 
@@ -26,69 +27,40 @@ export const register = async (req: Request, res: Response): Promise<void> => {
       email,
       password,
       role,
-      // Junior specific fields
       portfolio,
       skills,
       experienceLevel,
-      // Company specific fields
       companyName,
       website,
       industry,
     } = req.body;
 
-    // Validate role
-    if (!["junior", "company"].includes(role)) {
-      res.status(400).json({
-        success: false,
-        error: 'Invalid role. Must be either "junior" or "company"',
-      });
-      return;
-    }
-
-    // Validate role-specific required fields
-    if (role === "junior" && !experienceLevel) {
-      res.status(400).json({
-        success: false,
-        error: "Experience level is required for junior users",
-      });
-      return;
-    }
-
-    if (role === "company" && !companyName) {
-      res.status(400).json({
-        success: false,
-        error: "Company name is required for company users",
-      });
-      return;
-    }
-
-    // Check if user already exists
     const existingUser = await User.findOne({ email });
+
     if (existingUser) {
       res.status(400).json({
         success: false,
         error: "User already exists with this email",
       });
+
       return;
     }
 
-    // Create new user with role-specific fields
-    const userData: any = {
+    const userData = {
       name,
       email,
       password,
       role,
     };
 
-    // Add role-specific fields
     if (role === "junior") {
-      userData.portfolio = portfolio || [];
-      userData.skills = skills || [];
-      userData.experienceLevel = experienceLevel;
+      userData["portfolio"] = portfolio || [];
+      userData["skills"] = skills || [];
+      userData["experienceLevel"] = experienceLevel;
     } else if (role === "company") {
-      userData.companyName = companyName;
-      userData.website = website || "";
-      userData.industry = industry;
+      userData["companyName"] = companyName;
+      userData["website"] = website || "";
+      userData["industry"] = industry;
     }
 
     const user = new User(userData);
@@ -102,7 +74,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     await user.save();
 
     // Return success response with role-specific user data
-    const userData2 = {
+    const returnedUserData = {
       id: user._id,
       name: user.name,
       email: user.email,
@@ -111,13 +83,13 @@ export const register = async (req: Request, res: Response): Promise<void> => {
 
     // Add role-specific fields to response
     if (user.role === "junior") {
-      Object.assign(userData2, {
+      Object.assign(returnedUserData, {
         portfolio: user.portfolio,
         skills: user.skills,
         experienceLevel: user.experienceLevel,
       });
     } else if (user.role === "company") {
-      Object.assign(userData2, {
+      Object.assign(returnedUserData, {
         companyName: user.companyName,
         website: user.website,
         industry: user.industry,
@@ -128,7 +100,7 @@ export const register = async (req: Request, res: Response): Promise<void> => {
     res.status(201).json({
       success: true,
       data: {
-        user: userData2,
+        user: returnedUserData,
         tokens,
       },
       message: "User registered successfully",
