@@ -417,15 +417,15 @@ const Profile = () => {
                     />
                   ) : (
                     <span className="text-gray-500 text-2xl">
-                      {userProfile.name.charAt(0)}
+                      {userProfile.name.charAt(0) ?? "?"}
                     </span>
                   )}
                 </div>
                 <div>
                   <h2 className="text-xl font-semibold">{userProfile.name}</h2>
                   <p className="text-gray-500">
-                    {userProfile.role.charAt(0).toUpperCase() +
-                      userProfile.role.slice(1)}
+                    {userProfile.experienceLevel?.charAt(0).toUpperCase() ?? "?"}
+                    {userProfile.experienceLevel?.slice(1) ?? "?"}
                   </p>
                   <p className="text-sm text-gray-500">
                     Member since{" "}
