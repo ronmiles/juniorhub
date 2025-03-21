@@ -57,6 +57,7 @@ const ProjectList = () => {
         );
 
         if (response.data.success) {
+          console.log("Projects data:", response.data.data.projects);
           setProjects(response.data.data.projects);
           setTotal(response.data.data.pagination.total);
           setTotalPages(response.data.data.pagination.pages);
@@ -236,7 +237,7 @@ const ProjectList = () => {
             <div className="grid grid-cols-1 gap-6">
               {projects.map((project: any) => (
                 <div
-                  key={project.id}
+                  key={project.id || `project-${Math.random()}`}
                   className="bg-white p-6 rounded-lg shadow-md"
                 >
                   <div className="flex justify-between items-start">
@@ -331,14 +332,20 @@ const ProjectList = () => {
                         likes
                       </span>
                     </div>
-                    <Link
-                      to={`/projects/${project.id}`}
-                      className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition text-sm"
-                    >
-                      {user?.role === "junior" && project.status === "open"
-                        ? "Apply Now"
-                        : "View Details"}
-                    </Link>
+                    {project._id ? (
+                      <Link
+                        to={`/projects/${project._id}`}
+                        className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition text-sm"
+                      >
+                        {user?.role === "junior" && project.status === "open"
+                          ? "Apply Now"
+                          : "View Details"}
+                      </Link>
+                    ) : (
+                      <span className="px-4 py-2 bg-gray-300 text-gray-600 rounded-md text-sm">
+                        Missing Project ID
+                      </span>
+                    )}
                   </div>
                 </div>
               ))}
