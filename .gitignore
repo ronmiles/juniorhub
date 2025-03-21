@@ -53,3 +53,7 @@ vitest.config.*.timestamp*
 
 .env
 **/.env
+
+# Uploaded files
+apps/backend/src/uploads/profiles/*
+!apps/backend/src/uploads/profiles/.gitkeep

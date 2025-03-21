@@ -21,6 +21,7 @@ const Profile = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+  const [dropdownOpen, setDropdownOpen] = useState(false);
 
   // Fetch user profile
   useEffect(() => {
@@ -547,101 +548,160 @@ const Profile = () => {
           </form>
         ) : (
           <div>
-            {/* Profile picture upload section (visible in both editing and non-editing modes) */}
+            {/* Profile picture upload section with elegant edit button */}
             <div className="mb-6">
               <h3 className="text-lg font-medium text-gray-900 mb-3">
                 Profile Picture
               </h3>
               <div className="flex flex-col space-y-2">
                 <div className="flex items-center space-x-4">
-                  {/* Current profile picture or placeholder */}
-                  <div className="relative w-24 h-24">
-                    {userProfile.profilePicture ? (
-                      <img
-                        src={getFullImageUrl(userProfile.profilePicture)}
-                        alt={userProfile.name}
-                        className="w-full h-full object-cover rounded-full"
-                        onError={(e) => {
-                          console.error("Image failed to load:", e);
-                          // Show error border on failure
-                          e.currentTarget.classList.add(
-                            "border-2",
-                            "border-red-500"
-                          );
-                        }}
-                      />
-                    ) : (
-                      <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-500 text-2xl font-bold">
-                        {userProfile.name.charAt(0) ?? "?"}
-                      </div>
-                    )}
-                  </div>
-
-                  <div>
-                    {!imagePreview ? (
-                      <div className="flex flex-col space-y-2">
-                        <input
-                          type="file"
-                          ref={fileInputRef}
-                          onChange={handleFileChange}
-                          accept="image/jpeg,image/png,image/webp"
-                          className="hidden"
-                          id="profilePictureInput"
-                        />
-                        <label
-                          htmlFor="profilePictureInput"
-                          className="px-4 py-2 cursor-pointer inline-block bg-blue-500 text-white rounded-md hover:bg-blue-600 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
-                        >
-                          {userProfile.profilePicture
-                            ? "Change Picture"
-                            : "Upload Picture"}
-                        </label>
-
-                        {userProfile.profilePicture && (
-                          <button
-                            type="button"
-                            onClick={handleRemovePicture}
-                            disabled={isUploading}
-                            className="px-4 py-2 border border-red-300 text-red-600 rounded-md hover:bg-red-50 focus:outline-none focus:ring-2 focus:ring-red-500"
-                          >
-                            {isUploading ? "Removing..." : "Remove Picture"}
-                          </button>
+                  {!imagePreview ? (
+                    <div className="relative group">
+                      <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-gray-300 transition-all duration-200 group-hover:border-blue-400">
+                        {userProfile.profilePicture ? (
+                          <img
+                            src={getFullImageUrl(userProfile.profilePicture)}
+                            alt={userProfile.name}
+                            className="w-full h-full object-cover"
+                            onError={(e) => {
+                              console.error("Image failed to load:", e);
+                              e.currentTarget.classList.add("border-red-500");
+                            }}
+                          />
+                        ) : (
+                          <div className="w-full h-full flex items-center justify-center bg-blue-100 text-blue-500 text-2xl font-bold">
+                            {userProfile.name.charAt(0) ?? "?"}
+                          </div>
                         )}
                       </div>
-                    ) : (
-                      <div className="space-y-4">
-                        <div className="w-24 h-24 rounded-full overflow-hidden border border-gray-300">
-                          <img
-                            src={imagePreview}
-                            alt="Preview"
-                            className="w-full h-full object-cover"
-                          />
-                        </div>
-                        <div className="flex space-x-2">
+
+                      {/* Edit button overlay */}
+                      <div className="absolute bottom-0 right-0 opacity-0 group-hover:opacity-100 transition-opacity duration-200">
+                        <div className="relative">
                           <button
                             type="button"
-                            onClick={handleUploadPicture}
-                            disabled={isUploading}
-                            className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none"
+                            onClick={() => setDropdownOpen(!dropdownOpen)}
+                            className="bg-blue-500 hover:bg-blue-600 text-white rounded-full p-2 shadow-md focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2"
+                            aria-label="Edit profile picture"
+                            title="Edit profile picture"
                           >
-                            {isUploading ? "Uploading..." : "Save Picture"}
+                            <svg
+                              xmlns="http://www.w3.org/2000/svg"
+                              className="h-4 w-4"
+                              fill="none"
+                              viewBox="0 0 24 24"
+                              stroke="currentColor"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M15.232 5.232l3.536 3.536m-2.036-5.036a2.5 2.5 0 113.536 3.536L6.5 21.036H3v-3.572L16.732 3.732z"
+                              />
+                            </svg>
                           </button>
-                          <button
-                            type="button"
-                            onClick={handleCancelImageSelection}
-                            disabled={isUploading}
-                            className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none"
-                          >
-                            Cancel
-                          </button>
+
+                          {/* Dropdown menu */}
+                          {dropdownOpen && (
+                            <div className="absolute right-0 mt-2 w-48 bg-white rounded-md shadow-lg z-10 py-1">
+                              <input
+                                type="file"
+                                ref={fileInputRef}
+                                onChange={handleFileChange}
+                                accept="image/jpeg,image/png,image/webp"
+                                className="hidden"
+                                id="profilePictureInput"
+                              />
+                              <label
+                                htmlFor="profilePictureInput"
+                                className="block px-4 py-2 text-sm text-gray-700 hover:bg-gray-100 cursor-pointer"
+                                role="menuitem"
+                                tabIndex={0}
+                              >
+                                {userProfile.profilePicture
+                                  ? "Change Picture"
+                                  : "Upload Picture"}
+                              </label>
+
+                              {userProfile.profilePicture && (
+                                <button
+                                  type="button"
+                                  onClick={() => {
+                                    handleRemovePicture();
+                                    setDropdownOpen(false);
+                                  }}
+                                  disabled={isUploading}
+                                  className="block w-full text-left px-4 py-2 text-sm text-red-600 hover:bg-gray-100 disabled:opacity-50 disabled:cursor-not-allowed"
+                                  role="menuitem"
+                                >
+                                  {isUploading
+                                    ? "Removing..."
+                                    : "Remove Picture"}
+                                </button>
+                              )}
+                            </div>
+                          )}
                         </div>
                       </div>
-                    )}
-                    <p className="text-xs text-gray-500 mt-1">
-                      JPEG, PNG, or WebP. Max 5MB.
-                    </p>
+                    </div>
+                  ) : (
+                    <div className="space-y-4">
+                      <div className="w-24 h-24 rounded-full overflow-hidden border-2 border-blue-300">
+                        <img
+                          src={imagePreview}
+                          alt="Preview"
+                          className="w-full h-full object-cover"
+                        />
+                      </div>
+                      <div className="flex space-x-2">
+                        <button
+                          type="button"
+                          onClick={handleUploadPicture}
+                          disabled={isUploading}
+                          className="px-4 py-2 bg-green-500 text-white rounded-md hover:bg-green-600 focus:outline-none"
+                        >
+                          {isUploading ? "Uploading..." : "Save Picture"}
+                        </button>
+                        <button
+                          type="button"
+                          onClick={handleCancelImageSelection}
+                          disabled={isUploading}
+                          className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 focus:outline-none"
+                        >
+                          Cancel
+                        </button>
+                      </div>
+                    </div>
+                  )}
+
+                  <div className="text-xs text-gray-500 mt-1">
+                    JPEG, PNG, or WebP. Max 5MB.
                   </div>
                 </div>
+
+                {/* Debug information - only visible when a profile picture exists */}
+                {userProfile.profilePicture && (
+                  <div className="mt-4 p-3 bg-gray-100 rounded-md text-xs text-gray-700 break-all">
+                    <p>
+                      <strong>Debug Info:</strong>
+                    </p>
+                    <p>Profile picture path: {userProfile.profilePicture}</p>
+                    <p>
+                      Full URL: {getFullImageUrl(userProfile.profilePicture)}
+                    </p>
+                    <p>
+                      Try opening image directly:{" "}
+                      <a
+                        href={getFullImageUrl(userProfile.profilePicture)}
+                        target="_blank"
+                        rel="noopener noreferrer"
+                        className="text-blue-500 underline"
+                      >
+                        Open image in new tab
+                      </a>
+                    </p>
+                  </div>
+                )}
               </div>
             </div>
 
@@ -690,22 +750,6 @@ const Profile = () => {
                 </button>
               </div>
             </div>
-
-            {/* Experience level (for juniors) */}
-            {user.role === "junior" && (
-              <div className="mb-6">
-                <h3 className="text-lg font-semibold mb-2">Experience Level</h3>
-                <p className="text-gray-700">
-                  {userProfile.experienceLevel ? (
-                    <span className="capitalize">
-                      {userProfile.experienceLevel}
-                    </span>
-                  ) : (
-                    <span className="text-gray-400 italic">Not specified</span>
-                  )}
-                </p>
-              </div>
-            )}
 
             {/* Bio section */}
             <div className="mb-6">
