@@ -123,7 +123,7 @@ export const getProjectById = async (
         path: "applications",
         select: "status createdAt",
         populate: {
-          path: "developer",
+          path: "applicant",
           select: "name email profilePicture",
         },
       })
