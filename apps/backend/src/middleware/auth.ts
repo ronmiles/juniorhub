@@ -1,5 +1,5 @@
-import { Request, Response, NextFunction } from 'express';
-import { verifyAccessToken } from '../utils/jwt';
+import { Request, Response, NextFunction } from "express";
+import { verifyAccessToken } from "../utils/jwt";
 
 // Define our AuthUser interface
 interface AuthUser {
@@ -32,34 +32,34 @@ export const authenticate = (
 ): void => {
   // Get token from header
   const authHeader = req.headers.authorization;
-  
-  if (!authHeader || !authHeader.startsWith('Bearer ')) {
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
     res.status(401).json({
       success: false,
-      error: 'No token, authorization denied',
+      error: "No token, authorization denied",
     });
     return;
   }
-  
+
   // Verify token
-  const token = authHeader.split(' ')[1];
+  const token = authHeader.split(" ")[1];
   const decoded = verifyAccessToken(token);
-  
+
   if (!decoded) {
     res.status(401).json({
       success: false,
-      error: 'Token is not valid',
+      error: "Token is not valid",
     });
     return;
   }
-  
+
   // Set user data in request
   req.user = {
     userId: decoded.userId,
     id: decoded.userId, // Set id to be the same as userId for compatibility
     role: decoded.role,
   };
-  
+
   next();
 };
 
@@ -71,19 +71,19 @@ export const authorize = (roles: string[]) => {
     if (!req.user) {
       res.status(401).json({
         success: false,
-        error: 'Not authenticated',
+        error: "Not authenticated",
       });
       return;
     }
-    
+
     if (!roles.includes(req.user.role)) {
       res.status(403).json({
         success: false,
-        error: 'Not authorized to access this resource',
+        error: "Not authorized to access this resource",
       });
       return;
     }
-    
+
     next();
   };
 };
@@ -99,20 +99,20 @@ export const juniorOnly = (
   if (!req.user) {
     res.status(401).json({
       success: false,
-      error: 'Not authenticated',
+      error: "Not authenticated",
     });
     return;
   }
-  
+
   // Check if user is a junior
-  if (req.user.role !== 'junior') {
+  if (req.user.role !== "junior") {
     res.status(403).json({
       success: false,
-      error: 'This resource is only available to junior developers',
+      error: "This resource is only available to junior developers",
     });
     return;
   }
-  
+
   next();
 };
 
@@ -127,20 +127,20 @@ export const companyOnly = (
   if (!req.user) {
     res.status(401).json({
       success: false,
-      error: 'Not authenticated',
+      error: "Not authenticated",
     });
     return;
   }
-  
+
   // Check if user is a company
-  if (req.user.role !== 'company') {
+  if (req.user.role !== "company") {
     res.status(403).json({
       success: false,
-      error: 'This resource is only available to companies',
+      error: "This resource is only available to companies",
     });
     return;
   }
-  
+
   next();
 };
 
@@ -155,27 +155,65 @@ export const authorizeOwn = (
   if (!req.user) {
     res.status(401).json({
       success: false,
-      error: 'Not authenticated',
+      error: "Not authenticated",
     });
     return;
   }
-  
+
   // Allow admin to access any resource
-  if (req.user.role === 'admin') {
+  if (req.user.role === "admin") {
     next();
     return;
   }
-  
+
   // Check if user is accessing their own resource
   const resourceId = req.params.id;
-  
+
   if (resourceId !== req.user.userId) {
     res.status(403).json({
       success: false,
-      error: 'Not authorized to access this resource',
+      error: "Not authorized to access this resource",
     });
     return;
   }
-  
+
   next();
-}; 
+};
+
+/**
+ * Optional authentication middleware - doesn't fail if no token
+ * but sets req.user if a valid token is provided
+ */
+export const optionalAuthenticate = (
+  req: Request,
+  res: Response,
+  next: NextFunction
+): void => {
+  // Get token from header
+  const authHeader = req.headers.authorization;
+
+  if (!authHeader || !authHeader.startsWith("Bearer ")) {
+    // No auth header, continue without setting req.user
+    next();
+    return;
+  }
+
+  // Verify token
+  const token = authHeader.split(" ")[1];
+  const decoded = verifyAccessToken(token);
+
+  if (!decoded) {
+    // Invalid token, continue without setting req.user
+    next();
+    return;
+  }
+
+  // Set user data in request
+  req.user = {
+    userId: decoded.userId,
+    id: decoded.userId, // Set id to be the same as userId for compatibility
+    role: decoded.role,
+  };
+
+  next();
+};

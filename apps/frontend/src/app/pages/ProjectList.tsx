@@ -1,8 +1,9 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { Link } from "react-router-dom";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import { getFullImageUrl } from "../utils/imageUtils";
+import LikeButton from "../components/LikeButton";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -17,8 +18,8 @@ const STATUS_OPTIONS = [
 ];
 
 const ProjectList = () => {
-  const { user } = useAuth();
-  const [projects, setProjects] = useState([]);
+  const { user, getAuthHeaders } = useAuth();
+  const [projects, setProjects] = useState<any[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
@@ -29,17 +30,87 @@ const ProjectList = () => {
   const [sortBy, setSortBy] = useState("createdAt");
   const [sortOrder, setSortOrder] = useState("desc");
 
-  // Pagination states
+  // Infinite scrolling states
   const [page, setPage] = useState(1);
   const [limit] = useState(10);
-  const [total, setTotal] = useState(0);
-  const [totalPages, setTotalPages] = useState(1);
+  const [hasMore, setHasMore] = useState(true);
+  const [isLoadingMore, setIsLoadingMore] = useState(false);
 
-  // Fetch projects with filters
+  // Ref for the observer
+  const observer = useRef<IntersectionObserver | null>(null);
+  const lastProjectElementRef = useCallback(
+    (node: HTMLDivElement | null) => {
+      if (isLoading || isLoadingMore) return;
+      if (observer.current) observer.current.disconnect();
+      observer.current = new IntersectionObserver((entries) => {
+        if (entries[0].isIntersecting && hasMore) {
+          setPage((prevPage) => prevPage + 1);
+        }
+      });
+      if (node) observer.current.observe(node);
+    },
+    [isLoading, isLoadingMore, hasMore]
+  );
+
+  // Fetch projects on mount and when filters change
   useEffect(() => {
     const fetchProjects = async () => {
       setIsLoading(true);
       setError(null);
+      // Reset projects and pagination when filters change
+      setProjects([]);
+      setPage(1);
+      setHasMore(true);
+
+      try {
+        // Build query parameters
+        const params = new URLSearchParams();
+        if (search) params.append("search", search);
+        if (status) params.append("status", status);
+        if (skills) params.append("skills", skills);
+        params.append("page", "1");
+        params.append("limit", limit.toString());
+        params.append("sort", sortBy);
+        params.append("order", sortOrder);
+
+        // Get auth headers
+        const headers = getAuthHeaders();
+
+        // Fetch projects
+        const response = await axios.get(
+          `${API_URL}/projects?${params.toString()}`,
+          {
+            headers,
+          }
+        );
+
+        if (response.data.success) {
+          console.log("Projects data:", response.data.data.projects);
+          setProjects(response.data.data.projects);
+          setHasMore(
+            response.data.data.pagination.page <
+              response.data.data.pagination.pages
+          );
+        } else {
+          setError(response.data.error || "Failed to fetch projects");
+        }
+      } catch (err: any) {
+        setError(err.response?.data?.error || "Failed to fetch projects");
+      } finally {
+        setIsLoading(false);
+      }
+    };
+
+    fetchProjects();
+  }, [search, status, skills, sortBy, sortOrder]);
+
+  // Load more projects when page changes
+  useEffect(() => {
+    // Skip initial load (handled by the filter effect)
+    if (page === 1) return;
+
+    const loadMoreProjects = async () => {
+      setIsLoadingMore(true);
 
       try {
         // Build query parameters
@@ -52,45 +123,56 @@ const ProjectList = () => {
         params.append("sort", sortBy);
         params.append("order", sortOrder);
 
-        // Fetch projects
+        // Get auth headers
+        const headers = getAuthHeaders();
+
+        // Fetch more projects
         const response = await axios.get(
-          `${API_URL}/projects?${params.toString()}`
+          `${API_URL}/projects?${params.toString()}`,
+          {
+            headers,
+          }
         );
 
         if (response.data.success) {
-          console.log("Projects data:", response.data.data.projects);
-          setProjects(response.data.data.projects);
-          setTotal(response.data.data.pagination.total);
-          setTotalPages(response.data.data.pagination.pages);
+          console.log("More projects data:", response.data.data.projects);
+          setProjects((prevProjects) => [
+            ...prevProjects,
+            ...response.data.data.projects,
+          ]);
+          setHasMore(
+            response.data.data.pagination.page <
+              response.data.data.pagination.pages
+          );
         } else {
-          setError(response.data.error || "Failed to fetch projects");
+          setError(response.data.error || "Failed to fetch more projects");
         }
       } catch (err: any) {
-        setError(err.response?.data?.error || "Failed to fetch projects");
+        setError(err.response?.data?.error || "Failed to fetch more projects");
       } finally {
-        setIsLoading(false);
+        setIsLoadingMore(false);
       }
     };
 
-    fetchProjects();
-  }, [search, status, skills, page, limit, sortBy, sortOrder]);
+    loadMoreProjects();
+  }, [page]);
 
   // Handle search input change
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearch(e.target.value);
-    setPage(1); // Reset to first page on new search
+    // No need to reset page to 1 as the filter effect will do it
   };
 
   // Handle status filter change
   const handleStatusChange = (e: React.ChangeEvent<HTMLSelectElement>) => {
     setStatus(e.target.value);
-    setPage(1); // Reset to first page on filter change
+    // No need to reset page to 1 as the filter effect will do it
   };
 
   // Handle skills filter change
   const handleSkillsChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSkills(e.target.value);
-    setPage(1); // Reset to first page on filter change
+    // No need to reset page to 1 as the filter effect will do it
   };
 
   // Handle sort change
@@ -98,7 +180,7 @@ const ProjectList = () => {
     const [field, order] = e.target.value.split(":");
     setSortBy(field);
     setSortOrder(order);
-    setPage(1); // Reset to first page on sort change
+    // No need to reset page to 1 as the filter effect will do it
   };
 
   return (
@@ -207,7 +289,7 @@ const ProjectList = () => {
         </div>
       )}
 
-      {/* Loading state */}
+      {/* Loading state - initial loading */}
       {isLoading ? (
         <div className="flex justify-center items-center h-64">
           <div className="animate-spin rounded-full h-12 w-12 border-t-2 border-b-2 border-rose-500"></div>
@@ -236,201 +318,155 @@ const ProjectList = () => {
             </div>
           ) : (
             <div className="grid grid-cols-1 gap-6">
-              {projects.map((project: any) => (
-                <div
-                  key={project.id || `project-${Math.random()}`}
-                  className="bg-white p-6 rounded-lg shadow-md"
-                >
-                  <div className="flex justify-between items-start">
-                    <Link
-                      to={`/projects/${project._id}`}
-                      className="text-xl font-semibold text-rose-500 hover:text-rose-700"
-                    >
-                      {project.title}
-                    </Link>
-                    <span
-                      className={`px-2 py-1 text-xs rounded-full ${
-                        project.status === "open"
-                          ? "bg-green-100 text-green-800"
-                          : project.status === "in-progress"
-                          ? "bg-rose-100 text-rose-600"
-                          : project.status === "completed"
-                          ? "bg-gray-100 text-gray-800"
-                          : "bg-red-100 text-red-800"
-                      }`}
-                    >
-                      {project.status.replace("-", " ").toUpperCase()}
-                    </span>
-                  </div>
+              {projects.map((project: any, index: number) => {
+                // Check if this is the last project to attach the ref for infinite scrolling
+                const isLastProject = index === projects.length - 1;
 
-                  <p className="mt-2 text-gray-600">
-                    {project.description.length > 200
-                      ? `${project.description.slice(0, 200)}...`
-                      : project.description}
-                  </p>
-
-                  {/* Company info */}
-                  <div className="mt-4 flex items-center">
-                    <div className="w-8 h-8 bg-gray-200 rounded-full flex items-center justify-center mr-2">
-                      {project.company ? (
-                        project.company.profilePicture ? (
+                return (
+                  <div
+                    key={project._id || `project-${Math.random()}`}
+                    ref={isLastProject ? lastProjectElementRef : null}
+                    className="bg-white p-6 rounded-lg shadow-md"
+                  >
+                    {/* Project company info */}
+                    <div className="flex items-center mb-4">
+                      <div className="h-12 w-12 rounded-full overflow-hidden bg-gray-200 mr-3">
+                        {project.company?.profilePicture ? (
                           <img
                             src={getFullImageUrl(
                               project.company.profilePicture
                             )}
-                            alt={project.company.name}
-                            className="w-8 h-8 rounded-full"
+                            alt={project.company?.name || "Company"}
+                            className="h-full w-full object-cover"
                           />
                         ) : (
-                          <span className="text-gray-500 text-sm">
-                            {project.company.name.charAt(0)}
-                          </span>
-                        )
-                      ) : (
-                        <span className="text-gray-500 text-sm">?</span>
-                      )}
+                          <div className="h-full w-full flex items-center justify-center bg-gray-300 text-gray-600">
+                            <i className="fas fa-building"></i>
+                          </div>
+                        )}
+                      </div>
+                      <div>
+                        <h3 className="font-medium text-gray-900">
+                          {project.company?.name || "Unknown Company"}
+                        </h3>
+                        <p className="text-sm text-gray-500">
+                          {new Date(
+                            project.createdAt || Date.now()
+                          ).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="ml-auto">
+                        <span
+                          className={`px-3 py-1 text-xs rounded-full font-medium ${
+                            project.status === "open"
+                              ? "bg-green-100 text-green-800"
+                              : project.status === "in-progress"
+                              ? "bg-blue-100 text-blue-800"
+                              : project.status === "completed"
+                              ? "bg-purple-100 text-purple-800"
+                              : "bg-gray-100 text-gray-800"
+                          }`}
+                        >
+                          {project.status
+                            ?.split("-")
+                            .map(
+                              (word: string) =>
+                                word.charAt(0).toUpperCase() + word.slice(1)
+                            )
+                            .join(" ") || "Unknown"}
+                        </span>
+                      </div>
                     </div>
-                    <span className="text-sm text-gray-600">
-                      {project.company
-                        ? project.company.name
-                        : "Unknown Company"}
-                    </span>
-                  </div>
 
-                  {/* Skills and timeline */}
-                  <div className="mt-4 flex flex-wrap gap-2">
+                    {/* Project title and description */}
+                    <h2 className="text-xl font-semibold mb-2">
+                      {project.title}
+                    </h2>
+                    <p className="text-gray-600 mb-4">
+                      {project.description?.substring(0, 150)}
+                      {project.description?.length > 150 ? "..." : ""}
+                    </p>
+
+                    {/* Project skills */}
                     {project.skillsRequired &&
-                      project.skillsRequired.map(
-                        (skill: string, index: number) => (
-                          <span
-                            key={index}
-                            className="bg-rose-50 text-rose-700 px-2 py-1 text-xs rounded-md"
-                          >
-                            {skill}
-                          </span>
-                        )
+                      project.skillsRequired.length > 0 && (
+                        <div className="mb-4">
+                          <h4 className="text-sm font-medium text-gray-700 mb-2">
+                            Skills Required
+                          </h4>
+                          <div className="flex flex-wrap gap-2">
+                            {project.skillsRequired.map(
+                              (skill: string, i: number) => (
+                                <span
+                                  key={i}
+                                  className="px-3 py-1 bg-gray-100 text-gray-800 text-xs rounded-full"
+                                >
+                                  {skill}
+                                </span>
+                              )
+                            )}
+                          </div>
+                        </div>
                       )}
-                  </div>
 
-                  <div className="mt-4 text-sm text-gray-500">
-                    <span>
-                      Timeline:{" "}
-                      {new Date(
-                        project.timeframe.startDate
-                      ).toLocaleDateString()}{" "}
-                      -{" "}
-                      {new Date(project.timeframe.endDate).toLocaleDateString()}
-                    </span>
-                  </div>
-
-                  {/* Project stats and action button */}
-                  <div className="mt-4 flex items-center justify-between">
-                    <div className="flex items-center gap-4">
-                      <span className="text-sm text-gray-500">
-                        <i className="far fa-user"></i>{" "}
-                        {project.applicants?.length || 0} applicants
-                      </span>
-                      <span className="text-sm text-gray-500">
-                        <i className="far fa-heart"></i> {project.likes || 0}{" "}
-                        likes
+                    <div className="mt-4 text-sm text-gray-500">
+                      <span>
+                        Timeline:{" "}
+                        {new Date(
+                          project.timeframe.startDate
+                        ).toLocaleDateString()}{" "}
+                        -{" "}
+                        {new Date(
+                          project.timeframe.endDate
+                        ).toLocaleDateString()}
                       </span>
                     </div>
-                    {project._id ? (
-                      <Link
-                        to={`/projects/${project._id}`}
-                        className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition text-sm"
-                      >
-                        {user?.role === "junior" && project.status === "open"
-                          ? "Apply Now"
-                          : "View Details"}
-                      </Link>
-                    ) : (
-                      <span className="px-4 py-2 bg-gray-300 text-gray-600 rounded-md text-sm">
-                        Missing Project ID
-                      </span>
-                    )}
+
+                    {/* Project stats and action button */}
+                    <div className="mt-4 flex items-center justify-between">
+                      <div className="flex items-center gap-4">
+                        <span className="text-sm text-gray-500">
+                          <i className="far fa-user"></i>{" "}
+                          {project.applicants?.length || 0} applicants
+                        </span>
+                        <LikeButton
+                          projectId={project._id}
+                          initialLikes={project.likes || 0}
+                          initialUserHasLiked={project.hasLiked || false}
+                        />
+                      </div>
+                      {project._id ? (
+                        <Link
+                          to={`/projects/${project._id}`}
+                          className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition text-sm"
+                        >
+                          {user?.role === "junior" && project.status === "open"
+                            ? "Apply Now"
+                            : "View Details"}
+                        </Link>
+                      ) : (
+                        <span className="px-4 py-2 bg-gray-300 text-gray-600 rounded-md text-sm">
+                          Missing Project ID
+                        </span>
+                      )}
+                    </div>
                   </div>
+                );
+              })}
+
+              {/* Loading more indicator at the bottom */}
+              {isLoadingMore && (
+                <div className="flex justify-center py-4">
+                  <div className="animate-spin rounded-full h-8 w-8 border-t-2 border-b-2 border-rose-500"></div>
                 </div>
-              ))}
-            </div>
-          )}
+              )}
 
-          {/* Pagination */}
-          {totalPages > 1 && (
-            <div className="mt-8 flex justify-center">
-              <nav
-                className="relative z-0 inline-flex rounded-md shadow-sm -space-x-px"
-                aria-label="Pagination"
-              >
-                <button
-                  onClick={() => setPage(page > 1 ? page - 1 : 1)}
-                  disabled={page === 1}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-l-md border border-gray-300 bg-white text-sm font-medium ${
-                    page === 1
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-gray-500 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="sr-only">Previous</span>
-                  <svg
-                    className="h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M12.707 5.293a1 1 0 010 1.414L9.414 10l3.293 3.293a1 1 0 01-1.414 1.414l-4-4a1 1 0 010-1.414l4-4a1 1 0 011.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-
-                {/* Page numbers */}
-                {Array.from({ length: totalPages }, (_, i) => i + 1).map(
-                  (pageNum) => (
-                    <button
-                      key={pageNum}
-                      onClick={() => setPage(pageNum)}
-                      className={`relative inline-flex items-center px-4 py-2 border ${
-                        page === pageNum
-                          ? "z-10 bg-rose-50 border-rose-500 text-rose-600"
-                          : "bg-white border-gray-300 text-gray-500 hover:bg-gray-50"
-                      } text-sm font-medium`}
-                    >
-                      {pageNum}
-                    </button>
-                  )
-                )}
-
-                <button
-                  onClick={() =>
-                    setPage(page < totalPages ? page + 1 : totalPages)
-                  }
-                  disabled={page === totalPages}
-                  className={`relative inline-flex items-center px-2 py-2 rounded-r-md border border-gray-300 bg-white text-sm font-medium ${
-                    page === totalPages
-                      ? "text-gray-400 cursor-not-allowed"
-                      : "text-gray-500 hover:bg-gray-50"
-                  }`}
-                >
-                  <span className="sr-only">Next</span>
-                  <svg
-                    className="h-5 w-5"
-                    xmlns="http://www.w3.org/2000/svg"
-                    viewBox="0 0 20 20"
-                    fill="currentColor"
-                    aria-hidden="true"
-                  >
-                    <path
-                      fillRule="evenodd"
-                      d="M7.293 14.707a1 1 0 010-1.414L10.586 10 7.293 6.707a1 1 0 011.414-1.414l4 4a1 1 0 010 1.414l-4 4a1 1 0 01-1.414 0z"
-                      clipRule="evenodd"
-                    />
-                  </svg>
-                </button>
-              </nav>
+              {/* End of results message */}
+              {!hasMore && projects.length > 0 && (
+                <div className="text-center py-6 text-gray-500">
+                  You've reached the end of the list
+                </div>
+              )}
             </div>
           )}
         </>

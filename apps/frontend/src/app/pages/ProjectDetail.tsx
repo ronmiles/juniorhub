@@ -1,21 +1,24 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useAuth } from "../hooks/useAuth";
 import { getFullImageUrl } from "../utils/imageUtils";
+import LikeButton from "../components/LikeButton";
+import CommentsSection from "../components/CommentsSection";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const { user, getAuthHeaders } = useAuth();
+  const applicationFormRef = useRef<HTMLDivElement>(null);
 
   const [project, setProject] = useState<any>(null);
-  const [isLoading, setIsLoading] = useState(true);
+  const [isLoading, setIsLoading] = useState<boolean>(true);
   const [error, setError] = useState<string | null>(null);
   const [applications, setApplications] = useState<any[]>([]);
   const [showApplyForm, setShowApplyForm] = useState(false);
@@ -30,30 +33,45 @@ const ProjectDetail = () => {
       setError(null);
 
       try {
+        // Get auth headers
+        const headers = getAuthHeaders();
+
         // Fetch project
-        const projectResponse = await axios.get(`${API_URL}/projects/${id}`);
+        const projectResponse = await axios.get(`${API_URL}/projects/${id}`, {
+          withCredentials: true,
+          headers,
+        });
 
         if (projectResponse.data.success) {
-          const projectData = projectResponse.data.data.project;
+          // Use the direct data object, not the nested project object
+          const projectData = projectResponse.data.data;
           setProject(projectData);
 
           // Check if user has already applied
-          if (user && user.role === "junior") {
-            if (projectData.applications?.includes(user.id)) {
-              setHasApplied(true);
-            }
+          if (user && user.role === "junior" && projectData.applications) {
+            const hasUserApplied = projectData.applications.some(
+              (app: any) =>
+                app.developer?.id === user.id || app.developer?._id === user.id
+            );
+            setHasApplied(hasUserApplied);
           }
 
           // If user is the company owner, fetch applications
           if (
             user &&
             (user.role === "company" || user.role === "admin") &&
-            ((projectData.company && user.id === projectData.company.id) ||
+            ((projectData.company &&
+              (user.id === projectData.company.id ||
+                user.id === projectData.company._id)) ||
               user.role === "admin")
           ) {
             try {
               const applicationsResponse = await axios.get(
-                `${API_URL}/projects/${id}/applications`
+                `${API_URL}/projects/${id}/applications`,
+                {
+                  withCredentials: true,
+                  headers,
+                }
               );
               if (applicationsResponse.data.success) {
                 setApplications(applicationsResponse.data.data.applications);
@@ -125,7 +143,8 @@ const ProjectDetail = () => {
       try {
         const response = await axios.post(
           `${API_URL}/projects/${id}/apply`,
-          submissionData
+          submissionData,
+          { withCredentials: true }
         );
 
         if (response.data.success) {
@@ -200,6 +219,20 @@ const ProjectDetail = () => {
             <span className="ml-4 text-sm text-gray-500">
               Posted on {new Date(project.createdAt).toLocaleDateString()}
             </span>
+            <div className="ml-4">
+              <LikeButton
+                projectId={project.id || project._id}
+                initialLikes={project.likes || 0}
+                initialUserHasLiked={project.hasLiked || false}
+                onLikeSuccess={(newLikes, hasLiked) => {
+                  setProject({
+                    ...project,
+                    likes: newLikes,
+                    hasLiked: hasLiked,
+                  });
+                }}
+              />
+            </div>
           </div>
         </div>
         <div>
@@ -223,7 +256,15 @@ const ProjectDetail = () => {
           )}
           {user && user.role === "junior" && isProjectOpen && !hasApplied && (
             <button
-              onClick={() => setShowApplyForm(true)}
+              onClick={() => {
+                setShowApplyForm(true);
+                // Wait for the form to render, then scroll to it
+                setTimeout(() => {
+                  applicationFormRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                  });
+                }, 100);
+              }}
               className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition"
             >
               Apply for Project
@@ -285,7 +326,10 @@ const ProjectDetail = () => {
 
           {/* Application form */}
           {showApplyForm && (
-            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <div
+              ref={applicationFormRef}
+              className="bg-white p-6 rounded-lg shadow-md mb-8"
+            >
               <h2 className="text-xl font-semibold mb-4">
                 Apply for this Project
               </h2>
@@ -427,7 +471,7 @@ const ProjectDetail = () => {
                     </div>
                     <div className="mt-3">
                       <Link
-                        to={`/applications/${application.id}`}
+                        to={`/applications/${application._id}`}
                         className="text-rose-500 hover:text-rose-700 text-sm font-medium"
                       >
                         View Application →
@@ -438,6 +482,11 @@ const ProjectDetail = () => {
               </div>
             </div>
           )}
+
+          {/* Comments Section */}
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <CommentsSection projectId={project._id || project.id} />
+          </div>
         </div>
 
         {/* Sidebar */}

@@ -7,6 +7,7 @@ import {
   updateProject,
   deleteProject,
   getProjectApplications,
+  toggleLike,
 } from "../controllers/projectsController";
 import { createApplication } from "../controllers/applicationController";
 import {
@@ -14,6 +15,7 @@ import {
   authorize,
   companyOnly,
   juniorOnly,
+  optionalAuthenticate,
 } from "../middleware/auth";
 import {
   uploadProjectImages,
@@ -93,7 +95,7 @@ const router = express.Router();
  *                         limit:
  *                           type: integer
  */
-router.get("/", getProjects);
+router.get("/", optionalAuthenticate, getProjects);
 
 /**
  * @swagger
@@ -124,7 +126,7 @@ router.get("/", getProjects);
  *                     project:
  *                       $ref: '#/components/schemas/Project'
  */
-router.get("/:id", getProjectById);
+router.get("/:id", optionalAuthenticate, getProjectById);
 
 /**
  * @swagger
@@ -416,11 +418,36 @@ router.post(
       .notEmpty()
       .withMessage("Cover letter is required"),
     body("submissionLink")
-      .optional()
+      .optional({ nullable: true })
       .isURL()
       .withMessage("Submission link must be a valid URL"),
   ],
   createApplication
 );
+
+/**
+ * @swagger
+ * /api/projects/{id}/like:
+ *   post:
+ *     summary: Toggle like on a project
+ *     tags: [Projects]
+ *     parameters:
+ *       - in: path
+ *         name: id
+ *         required: true
+ *         schema:
+ *           type: string
+ *         description: Project ID
+ *     responses:
+ *       200:
+ *         description: Like toggled successfully
+ *       401:
+ *         description: Not authorized
+ *       404:
+ *         description: Project not found
+ *       500:
+ *         description: Server error
+ */
+router.post("/:id/like", authenticate, toggleLike);
 
 export default router;

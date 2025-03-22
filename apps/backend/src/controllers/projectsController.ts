@@ -67,10 +67,29 @@ export const getProjects = async (
     // Get total count for pagination
     const total = await Project.countDocuments(query);
 
+    // Add hasLiked field to each project if user is authenticated
+    const enhancedProjects = projects.map((project) => {
+      const projectObj: any = project.toObject();
+
+      // Check if user has liked this project
+      if (req.user) {
+        // Try both id and userId for backward compatibility
+        const userIdToCheck = req.user.id || req.user.userId;
+
+        projectObj.hasLiked =
+          project.userLikes?.some((id) => id.toString() === userIdToCheck) ||
+          false;
+      } else {
+        projectObj.hasLiked = false;
+      }
+
+      return projectObj;
+    });
+
     res.status(200).json({
       success: true,
       data: {
-        projects,
+        projects: enhancedProjects,
         pagination: {
           total,
           page: pageNumber,
@@ -99,8 +118,19 @@ export const getProjectById = async (
 ): Promise<void> => {
   try {
     const project = await Project.findById(req.params.id)
-      .populate("company", "name email profilePicture bio createdAt")
-      .populate("selectedDeveloper", "name email profilePicture");
+      .populate("company", "name email profilePicture companyName")
+      .populate({
+        path: "applications",
+        select: "status createdAt",
+        populate: {
+          path: "applicant",
+          select: "name email profilePicture",
+        },
+      })
+      .populate({
+        path: "selectedDeveloper",
+        select: "name email profilePicture",
+      });
 
     if (!project) {
       res.status(404).json({
@@ -110,22 +140,43 @@ export const getProjectById = async (
       return;
     }
 
-    // Log image URLs for debugging
-    if (project.images && project.images.length > 0) {
-      console.log("Project images found:", project.images);
-    } else {
-      console.log("No images found for project:", req.params.id);
+    // Check if user has liked this project (if authenticated)
+    let hasLiked = false;
+    if (req.user) {
+      console.log("User authenticated, checking likes");
+      console.log("req.user:", JSON.stringify(req.user, null, 2));
+      console.log(
+        "project.userLikes:",
+        JSON.stringify(project.userLikes, null, 2)
+      );
+
+      // Try both id and userId for backward compatibility
+      const userIdToCheck = req.user.id || req.user.userId;
+
+      hasLiked =
+        project.userLikes?.some((id) => {
+          const idString = id.toString();
+          const match = idString === userIdToCheck;
+          console.log(
+            `Comparing ${idString} with ${userIdToCheck}, match: ${match}`
+          );
+          return match;
+        }) || false;
+
+      console.log("Final hasLiked value:", hasLiked);
     }
 
     res.status(200).json({
       success: true,
-      data: { project },
+      data: {
+        ...project.toJSON(),
+        hasLiked,
+      },
     });
-  } catch (error) {
-    console.error("Get project error:", error);
+  } catch (error: any) {
     res.status(500).json({
       success: false,
-      error: "Server error",
+      error: error.message || "Server error",
     });
   }
 };
@@ -599,6 +650,103 @@ export const applyToProject = async (
     res.status(500).json({
       success: false,
       error: "Server error",
+    });
+  }
+};
+
+/**
+ * @desc    Toggle like on a project
+ * @route   POST /api/projects/:id/like
+ * @access  Private (any authenticated user)
+ */
+export const toggleLike = async (req: Request, res: Response) => {
+  try {
+    // Try both id and userId for backward compatibility
+    const userId = req.user?.id || req.user?.userId;
+    const projectId = req.params.id;
+
+    if (!userId) {
+      return res.status(401).json({
+        success: false,
+        error: "User not authenticated",
+      });
+    }
+
+    const project = await Project.findById(projectId);
+    if (!project) {
+      return res.status(404).json({
+        success: false,
+        error: "Project not found",
+      });
+    }
+
+    const user = await User.findById(userId);
+    if (!user) {
+      return res.status(404).json({
+        success: false,
+        error: "User not found",
+      });
+    }
+
+    // Check if user has already liked this project
+    const userHasLiked = project.userLikes?.some((id) => {
+      const idString = id.toString();
+      const match = idString === userId;
+      console.log(`Comparing ${idString} with ${userId}, match: ${match}`);
+      return match;
+    });
+
+    console.log("User has liked:", userHasLiked);
+
+    if (userHasLiked) {
+      // User has already liked the project, so unlike it
+      project.userLikes = project.userLikes?.filter(
+        (id) => id.toString() !== userId
+      );
+      project.likes = Math.max(0, (project.likes || 0) - 1);
+
+      // Remove from user's liked projects
+      user.likedProjects = user.likedProjects?.filter(
+        (id) => id.toString() !== projectId
+      );
+    } else {
+      // User hasn't liked the project yet, so like it
+      if (!project.userLikes) {
+        project.userLikes = [];
+      }
+      project.userLikes.push(new mongoose.Types.ObjectId(userId));
+      project.likes = (project.likes || 0) + 1;
+
+      // Add to user's liked projects
+      if (!user.likedProjects) {
+        user.likedProjects = [];
+      }
+      user.likedProjects.push(new mongoose.Types.ObjectId(projectId));
+    }
+
+    await Promise.all([project.save(), user.save()]);
+
+    console.log(
+      "After save, project.userLikes:",
+      JSON.stringify(project.userLikes, null, 2)
+    );
+    console.log("Response:", {
+      likes: project.likes,
+      userHasLiked: !userHasLiked,
+    });
+
+    res.status(200).json({
+      success: true,
+      data: {
+        likes: project.likes,
+        userHasLiked: !userHasLiked,
+      },
+    });
+  } catch (error: any) {
+    console.error("Error in toggleLike:", error);
+    res.status(500).json({
+      success: false,
+      error: error.message || "Server error",
     });
   }
 };

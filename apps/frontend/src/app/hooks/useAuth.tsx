@@ -33,6 +33,7 @@ const normalizeUser = (userData: any): User => {
   return {
     // If _id exists but id doesn't, use _id as id
     id: userData.id || userData._id,
+    userId: userData.id || userData._id, // Add userId for compatibility with backend
     name: userData.name,
     email: userData.email,
     role: userData.role,
@@ -133,7 +134,9 @@ export const AuthProvider = ({ children }: { children: ReactNode }) => {
   // Get authentication headers for API requests
   const getAuthHeaders = () => {
     const token = localStorage.getItem("accessToken");
-    return token ? { Authorization: `Bearer ${token}` } : {};
+    return token
+      ? { Authorization: `Bearer ${token}` }
+      : ({} as Record<string, never>);
   };
 
   // Login function

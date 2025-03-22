@@ -38,12 +38,13 @@ const ProjectApplications = () => {
           return;
         }
 
-        const projectData = projectResponse.data.data.project;
+        const projectData = projectResponse.data.data;
         setProject(projectData);
 
         // Verify that the current user is the project owner
         if (
           user?.role !== "company" ||
+          !projectData.company ||
           (projectData.company &&
             projectData.company.id !== user?.id &&
             projectData.company._id !== user?.id)

@@ -6,6 +6,7 @@ import { User as UserType } from "@juniorhub/types";
 type MongooseUser = Omit<UserType, "id" | "projects" | "applications"> & {
   projects?: mongoose.Types.ObjectId[];
   applications?: mongoose.Types.ObjectId[];
+  likedProjects?: mongoose.Types.ObjectId[];
   googleId?: string;
   refreshToken?: string;
   accessToken?: string;
@@ -74,6 +75,13 @@ const UserSchema = new Schema<UserDocument>(
       {
         type: Schema.Types.ObjectId,
         ref: "Application",
+      },
+    ],
+    likedProjects: [
+      {
+        type: Schema.Types.ObjectId,
+        ref: "Project",
+        default: [],
       },
     ],
     // OAuth fields
