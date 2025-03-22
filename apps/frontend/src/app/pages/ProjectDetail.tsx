@@ -33,7 +33,7 @@ const ProjectDetail = () => {
       try {
         // Get auth headers
         const headers = getAuthHeaders();
-        
+
         // Fetch project
         const projectResponse = await axios.get(`${API_URL}/projects/${id}`, {
           withCredentials: true,

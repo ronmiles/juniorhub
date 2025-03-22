@@ -55,7 +55,7 @@ const ProjectList = () => {
 
         // Get auth headers
         const headers = getAuthHeaders();
-        
+
         // Fetch projects
         const response = await axios.get(
           `${API_URL}/projects?${params.toString()}`,
