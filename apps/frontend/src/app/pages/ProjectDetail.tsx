@@ -6,6 +6,7 @@ import * as Yup from "yup";
 import { useAuth } from "../hooks/useAuth";
 import { getFullImageUrl } from "../utils/imageUtils";
 import LikeButton from "../components/LikeButton";
+import CommentsSection from "../components/CommentsSection";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -469,6 +470,11 @@ const ProjectDetail = () => {
               </div>
             </div>
           )}
+
+          {/* Comments Section */}
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <CommentsSection projectId={project._id || project.id} />
+          </div>
         </div>
 
         {/* Sidebar */}
