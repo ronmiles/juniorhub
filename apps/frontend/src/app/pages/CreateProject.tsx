@@ -5,6 +5,7 @@ import { useAiEnhancement } from "../hooks/useAiEnhancement";
 import { useFormik, FieldArray, FormikProvider } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
+import ImageUpload from "../components/ImageUpload";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -33,6 +34,9 @@ const CreateProject = () => {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { enhanceProject, isEnhancing, error: aiError } = useAiEnhancement();
+  const [selectedImages, setSelectedImages] = useState<File[]>([]);
+  const [imagePreviews, setImagePreviews] = useState<string[]>([]);
+  const [imageUploadError, setImageUploadError] = useState<string | null>(null);
 
   // Track which fields have been enhanced by AI
   const [enhancedFields, setEnhancedFields] = useState<{
@@ -97,7 +101,42 @@ const CreateProject = () => {
       setError(null);
 
       try {
-        const response = await axios.post(`${API_URL}/projects`, values);
+        // Create a FormData object to handle file uploads
+        const formData = new FormData();
+
+        // Add all form values to the FormData
+        formData.append("title", values.title);
+        formData.append("description", values.description);
+
+        // Add arrays with indexed keys
+        values.requirements.forEach((req, index) => {
+          formData.append(`requirements[${index}]`, req);
+        });
+
+        // Add timeframe as separate fields
+        formData.append("timeframe[startDate]", values.timeframe.startDate);
+        formData.append("timeframe[endDate]", values.timeframe.endDate);
+
+        // Add skills and tags
+        values.skillsRequired.forEach((skill, index) => {
+          formData.append(`skillsRequired[${index}]`, skill);
+        });
+
+        values.tags.forEach((tag, index) => {
+          formData.append(`tags[${index}]`, tag);
+        });
+
+        // Add images
+        selectedImages.forEach((image) => {
+          formData.append("projectImages", image);
+        });
+
+        // Send request with FormData
+        const response = await axios.post(`${API_URL}/projects`, formData, {
+          headers: {
+            "Content-Type": "multipart/form-data",
+          },
+        });
 
         if (response.data.success) {
           // Navigate to the newly created project
@@ -187,6 +226,37 @@ const CreateProject = () => {
     }
   };
 
+  // Handle image selection
+  const handleImagesSelected = (files: File[]) => {
+    setImageUploadError(null);
+
+    // Create previews for the newly selected images
+    const newPreviews = files.map((file) => URL.createObjectURL(file));
+
+    // Update state with new files and previews
+    setSelectedImages((prevImages) => [...prevImages, ...files]);
+    setImagePreviews((prevPreviews) => [...prevPreviews, ...newPreviews]);
+  };
+
+  // Handle image removal
+  const handleImageRemove = (index: number) => {
+    // Remove the image and its preview at the given index
+    setSelectedImages((prevImages) => {
+      const updatedImages = [...prevImages];
+      updatedImages.splice(index, 1);
+      return updatedImages;
+    });
+
+    setImagePreviews((prevPreviews) => {
+      // Revoke the object URL to prevent memory leaks
+      URL.revokeObjectURL(prevPreviews[index]);
+
+      const updatedPreviews = [...prevPreviews];
+      updatedPreviews.splice(index, 1);
+      return updatedPreviews;
+    });
+  };
+
   return (
     <div className="max-w-3xl mx-auto">
       <h1 className="text-3xl font-bold mb-6">Create New Project</h1>
@@ -263,10 +333,10 @@ const CreateProject = () => {
                 type="button"
                 onClick={handleEnhanceWithAI}
                 disabled={isEnhancing}
-                className="mt-2 px-4 py-2 bg-purple-600 text-white rounded-md hover:bg-purple-700 transition flex items-center"
+                className="mt-2 px-3 py-1 text-sm bg-purple-500 text-white rounded-md hover:bg-purple-600 focus:outline-none flex items-center"
               >
                 {isEnhancing ? (
-                  <>
+                  <span className="flex items-center">
                     <svg
                       className="animate-spin -ml-1 mr-2 h-4 w-4 text-white"
                       xmlns="http://www.w3.org/2000/svg"
@@ -288,94 +358,115 @@ const CreateProject = () => {
                       ></path>
                     </svg>
                     Enhancing...
-                  </>
+                  </span>
                 ) : (
                   <>
-                    <svg
-                      className="w-5 h-5 mr-2"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
-                      xmlns="http://www.w3.org/2000/svg"
-                    >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456zM16.894 20.567L16.5 21.75l-.394-1.183a2.25 2.25 0 00-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 001.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 001.423 1.423l1.183.394-1.183.394a2.25 2.25 0 00-1.423 1.423z"
-                      />
-                    </svg>
-                    Enhance with AI
+                    <AISparkleIcon /> Enhance with AI
                   </>
                 )}
               </button>
             </div>
 
-            {/* Requirements field array */}
-            <div className="mb-4">
+            {/* Image Upload Section */}
+            <div className="mb-6">
               <label className="block text-sm font-medium text-gray-700 mb-1">
+                Project Images
+              </label>
+              <ImageUpload
+                images={selectedImages}
+                previews={imagePreviews}
+                onImagesSelected={handleImagesSelected}
+                onImageRemove={handleImageRemove}
+                error={imageUploadError}
+              />
+            </div>
+
+            {/* Requirements field array */}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Project Requirements *{" "}
                 {enhancedFields.requirements && <AISparkleIcon />}
               </label>
-              <FieldArray
-                name="requirements"
-                render={(arrayHelpers) => (
-                  <div className="space-y-2">
-                    {formik.values.requirements.map((_, index) => (
-                      <div key={index} className="flex items-center gap-2">
+              <FieldArray name="requirements">
+                {({ remove, push }) => (
+                  <div>
+                    {formik.values.requirements.map((req, index) => (
+                      <div key={index} className="flex mb-2">
                         <input
                           name={`requirements.${index}`}
-                          type="text"
-                          placeholder="e.g. Must be responsive for all devices"
-                          className={`flex-grow px-3 py-2 border ${
-                            formik.touched.requirements &&
-                            (formik.touched.requirements as any)[index] &&
+                          placeholder="E.g., Create a responsive layout"
+                          className={`w-full px-3 py-2 border ${
+                            Array.isArray(formik.touched.requirements) &&
+                            formik.touched.requirements[index] &&
                             Array.isArray(formik.errors.requirements) &&
                             formik.errors.requirements[index]
                               ? "border-red-500"
                               : "border-gray-300"
-                          } rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500`}
+                          } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                          value={req}
                           onChange={formik.handleChange}
                           onBlur={formik.handleBlur}
-                          value={formik.values.requirements[index]}
                         />
-                        <button
-                          type="button"
-                          onClick={() => arrayHelpers.remove(index)}
-                          className="p-2 text-red-500 hover:text-red-700"
-                          disabled={formik.values.requirements.length <= 1}
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
+                        {index > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            className="ml-2 p-2 text-red-500 hover:text-red-700"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     ))}
 
+                    {formik.touched.requirements &&
+                      formik.errors.requirements &&
+                      typeof formik.errors.requirements === "string" && (
+                        <div className="mt-1 text-sm text-red-500">
+                          {formik.errors.requirements}
+                        </div>
+                      )}
+
                     <button
                       type="button"
-                      onClick={() => arrayHelpers.push("")}
-                      className="mt-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
+                      onClick={() => push("")}
+                      className="mt-2 text-sm text-blue-500 hover:text-blue-700 flex items-center"
                     >
-                      + Add Requirement
+                      <svg
+                        className="h-4 w-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Add Requirement
                     </button>
                   </div>
                 )}
-              />
+              </FieldArray>
             </div>
 
-            {/* Timeframe fields */}
+            {/* Timeframe */}
             <div className="mb-4 grid grid-cols-1 md:grid-cols-2 gap-4">
               <div>
                 <label
@@ -437,96 +528,115 @@ const CreateProject = () => {
             </div>
 
             {/* Skills field array */}
-            <div className="mb-4">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
-                Skills Required *{" "}
+            <div className="mb-6">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
+                Required Skills *{" "}
                 {enhancedFields.skillsRequired && <AISparkleIcon />}
               </label>
-              <FieldArray
-                name="skillsRequired"
-                render={(arrayHelpers) => (
-                  <div className="space-y-2">
-                    {formik.values.skillsRequired.map((_, index) => (
-                      <div key={index} className="flex items-center gap-2">
+              <FieldArray name="skillsRequired">
+                {({ remove, push }) => (
+                  <div>
+                    {formik.values.skillsRequired.map((skill, index) => (
+                      <div key={index} className="flex mb-2">
                         <input
                           name={`skillsRequired.${index}`}
-                          type="text"
-                          placeholder="e.g. React, JavaScript, TypeScript"
-                          className={`flex-grow px-3 py-2 border ${
-                            formik.touched.skillsRequired &&
-                            (formik.touched.skillsRequired as any)[index] &&
+                          placeholder="E.g., React, JavaScript, CSS"
+                          className={`w-full px-3 py-2 border ${
+                            Array.isArray(formik.touched.skillsRequired) &&
+                            formik.touched.skillsRequired[index] &&
                             Array.isArray(formik.errors.skillsRequired) &&
                             formik.errors.skillsRequired[index]
                               ? "border-red-500"
                               : "border-gray-300"
-                          } rounded-md focus:outline-none focus:ring-2 focus:ring-rose-500`}
+                          } rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500`}
+                          value={skill}
                           onChange={formik.handleChange}
                           onBlur={formik.handleBlur}
-                          value={formik.values.skillsRequired[index]}
                         />
-                        <button
-                          type="button"
-                          onClick={() => arrayHelpers.remove(index)}
-                          className="p-2 text-red-500 hover:text-red-700"
-                          disabled={formik.values.skillsRequired.length <= 1}
-                        >
-                          <svg
-                            className="w-5 h-5"
-                            fill="none"
-                            stroke="currentColor"
-                            viewBox="0 0 24 24"
-                            xmlns="http://www.w3.org/2000/svg"
+                        {index > 0 && (
+                          <button
+                            type="button"
+                            onClick={() => remove(index)}
+                            className="ml-2 p-2 text-red-500 hover:text-red-700"
                           >
-                            <path
-                              strokeLinecap="round"
-                              strokeLinejoin="round"
-                              strokeWidth={2}
-                              d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                            />
-                          </svg>
-                        </button>
+                            <svg
+                              className="h-5 w-5"
+                              fill="none"
+                              stroke="currentColor"
+                              viewBox="0 0 24 24"
+                              xmlns="http://www.w3.org/2000/svg"
+                            >
+                              <path
+                                strokeLinecap="round"
+                                strokeLinejoin="round"
+                                strokeWidth={2}
+                                d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                              />
+                            </svg>
+                          </button>
+                        )}
                       </div>
                     ))}
 
+                    {formik.touched.skillsRequired &&
+                      formik.errors.skillsRequired &&
+                      typeof formik.errors.skillsRequired === "string" && (
+                        <div className="mt-1 text-sm text-red-500">
+                          {formik.errors.skillsRequired}
+                        </div>
+                      )}
+
                     <button
                       type="button"
-                      onClick={() => arrayHelpers.push("")}
-                      className="mt-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
+                      onClick={() => push("")}
+                      className="mt-2 text-sm text-blue-500 hover:text-blue-700 flex items-center"
                     >
-                      + Add Skill
+                      <svg
+                        className="h-4 w-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Add Skill
                     </button>
                   </div>
                 )}
-              />
+              </FieldArray>
             </div>
 
             {/* Tags field array */}
             <div className="mb-6">
-              <label className="block text-sm font-medium text-gray-700 mb-1">
+              <label className="block text-sm font-medium text-gray-700 mb-2">
                 Tags (Optional) {enhancedFields.tags && <AISparkleIcon />}
               </label>
-              <FieldArray
-                name="tags"
-                render={(arrayHelpers) => (
-                  <div className="space-y-2">
-                    {formik.values.tags.map((_, index) => (
-                      <div key={index} className="flex items-center gap-2">
+              <FieldArray name="tags">
+                {({ remove, push }) => (
+                  <div>
+                    {formik.values.tags.map((tag, index) => (
+                      <div key={index} className="flex mb-2">
                         <input
                           name={`tags.${index}`}
-                          type="text"
-                          placeholder="e.g. frontend, beginner-friendly, urgent"
-                          className="flex-grow px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          placeholder="E.g., Frontend, Design, E-commerce"
+                          className="w-full px-3 py-2 border border-gray-300 rounded-md focus:outline-none focus:ring-2 focus:ring-blue-500"
+                          value={tag}
                           onChange={formik.handleChange}
                           onBlur={formik.handleBlur}
-                          value={formik.values.tags[index]}
                         />
                         <button
                           type="button"
-                          onClick={() => arrayHelpers.remove(index)}
-                          className="p-2 text-red-500 hover:text-red-700"
+                          onClick={() => remove(index)}
+                          className="ml-2 p-2 text-red-500 hover:text-red-700"
                         >
                           <svg
-                            className="w-5 h-5"
+                            className="h-5 w-5"
                             fill="none"
                             stroke="currentColor"
                             viewBox="0 0 24 24"
@@ -545,31 +655,36 @@ const CreateProject = () => {
 
                     <button
                       type="button"
-                      onClick={() => arrayHelpers.push("")}
-                      className="mt-2 px-3 py-1 bg-gray-100 text-gray-700 rounded-md hover:bg-gray-200 text-sm"
+                      onClick={() => push("")}
+                      className="mt-2 text-sm text-blue-500 hover:text-blue-700 flex items-center"
                     >
-                      + Add Tag
+                      <svg
+                        className="h-4 w-4 mr-1"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                        xmlns="http://www.w3.org/2000/svg"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                        />
+                      </svg>
+                      Add Tag
                     </button>
                   </div>
                 )}
-              />
+              </FieldArray>
             </div>
 
-            {/* Submit buttons */}
-            <div className="flex justify-end gap-2">
-              <button
-                type="button"
-                onClick={() => navigate("/projects")}
-                className="px-4 py-2 border border-gray-300 text-gray-700 rounded-md hover:bg-gray-50 transition"
-              >
-                Cancel
-              </button>
+            {/* Submit button */}
+            <div className="mt-8">
               <button
                 type="submit"
                 disabled={isSubmitting}
-                className={`px-4 py-2 bg-blue-600 text-white rounded-md hover:bg-blue-700 transition ${
-                  isSubmitting ? "opacity-70 cursor-not-allowed" : ""
-                }`}
+                className="w-full bg-blue-600 text-white py-2 px-4 rounded-md hover:bg-blue-700 focus:outline-none focus:ring-2 focus:ring-blue-500 focus:ring-offset-2 disabled:opacity-50 disabled:cursor-not-allowed"
               >
                 {isSubmitting ? (
                   <span className="flex items-center">

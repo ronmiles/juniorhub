@@ -3,6 +3,7 @@ import { useAuth } from "../hooks/useAuth";
 import { useFormik } from "formik";
 import * as Yup from "yup";
 import axios from "axios";
+import { getFullImageUrl } from "../utils/imageUtils";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -305,15 +306,6 @@ const Profile = () => {
       }
     },
   });
-
-  // Add this helper function somewhere in your component above the return statement
-  const getFullImageUrl = (path: string) => {
-    if (!path) return "";
-    // If it's already a full URL, return it as is
-    if (path.startsWith("http")) return path;
-    // Otherwise, prepend the base URL (without the /api part)
-    return `${API_URL.replace("/api", "")}${path}`;
-  };
 
   if (!user || !userProfile) {
     return (

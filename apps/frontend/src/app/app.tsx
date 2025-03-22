@@ -44,6 +44,7 @@ export function App() {
             <Route path="projects" element={<ProjectList />} />
             <Route path="projects/:id" element={<ProjectDetail />} />
             <Route path="projects/new" element={<CreateProject />} />
+            <Route path="create-project" element={<CreateProject />} />
             <Route path="projects/:id/edit" element={<EditProject />} />
 
             {/* Protected routes */}

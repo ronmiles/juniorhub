@@ -4,6 +4,11 @@ import Project from "../models/Project";
 import User from "../models/User";
 import Application from "../models/Application";
 import mongoose from "mongoose";
+import path from "path";
+import {
+  getFilePathFromUrl,
+  deleteProjectImage,
+} from "../middleware/uploadMiddleware";
 /**
  * Get all projects with filtering options
  * @route GET /api/projects
@@ -103,6 +108,13 @@ export const getProjectById = async (
         error: "Project not found",
       });
       return;
+    }
+
+    // Log image URLs for debugging
+    if (project.images && project.images.length > 0) {
+      console.log("Project images found:", project.images);
+    } else {
+      console.log("No images found for project:", req.params.id);
     }
 
     res.status(200).json({
@@ -231,6 +243,20 @@ export const createProject = async (
       tags,
     } = req.body;
 
+    // Process uploaded images if they exist
+    const images: string[] = [];
+    if (req.files && Array.isArray(req.files)) {
+      // Create URLs for each uploaded image
+      req.files.forEach((file) => {
+        const relativePath = path
+          .relative(path.join(__dirname, ".."), file.path)
+          .replace(/\\/g, "/");
+        const fileUrl = `/api/${relativePath}`;
+        console.log("Created file URL:", fileUrl, "from path:", file.path);
+        images.push(fileUrl);
+      });
+    }
+
     // Create new project
     const project = new Project({
       title,
@@ -240,6 +266,7 @@ export const createProject = async (
       timeframe,
       skillsRequired,
       tags,
+      images, // Add the image URLs to the project
     });
 
     await project.save();
@@ -284,6 +311,10 @@ export const updateProject = async (
       return;
     }
 
+    // Log entire request body for debugging
+    console.log("Update project request body:", req.body);
+    console.log("Update project request files:", req.files);
+
     // Find project
     const project = await Project.findById(req.params.id);
 
@@ -316,7 +347,60 @@ export const updateProject = async (
       status,
       skillsRequired,
       tags,
+      imagesToRemove,
     } = req.body;
+
+    // Process uploaded images if they exist
+    let existingImages = project.images || [];
+
+    console.log("Original images:", existingImages);
+    console.log("Images to remove:", imagesToRemove);
+
+    // Remove images if specified
+    if (imagesToRemove) {
+      // Handle both array and string formats from form data
+      let imagesToRemoveArray: string[] = [];
+
+      if (Array.isArray(imagesToRemove)) {
+        imagesToRemoveArray = imagesToRemove;
+      } else if (typeof imagesToRemove === "string") {
+        imagesToRemoveArray = [imagesToRemove];
+      } else if (typeof imagesToRemove === "object") {
+        // Handle when form data sends it as an object with indices as keys
+        imagesToRemoveArray = Object.values(imagesToRemove);
+      }
+
+      console.log("Processed images to remove:", imagesToRemoveArray);
+
+      // Delete files from filesystem
+      imagesToRemoveArray.forEach((imageUrl) => {
+        const filePath = getFilePathFromUrl(imageUrl);
+        if (filePath) {
+          console.log("Deleting image file:", filePath);
+          deleteProjectImage(filePath);
+        }
+      });
+
+      // Remove from the existing images array
+      existingImages = existingImages.filter(
+        (img) => !imagesToRemoveArray.includes(img)
+      );
+
+      console.log("Remaining images after removal:", existingImages);
+    }
+
+    // Add new uploaded images
+    if (req.files && Array.isArray(req.files)) {
+      // Create URLs for each uploaded image
+      req.files.forEach((file) => {
+        const relativePath = path
+          .relative(path.join(__dirname, ".."), file.path)
+          .replace(/\\/g, "/");
+        const fileUrl = `/api/${relativePath}`;
+        console.log("Created file URL:", fileUrl, "from path:", file.path);
+        existingImages.push(fileUrl);
+      });
+    }
 
     // Update project fields
     if (title) project.title = title;
@@ -326,6 +410,9 @@ export const updateProject = async (
     if (status) project.status = status;
     if (skillsRequired) project.skillsRequired = skillsRequired;
     if (tags) project.tags = tags;
+
+    // Update images
+    project.images = existingImages;
 
     await project.save();
 

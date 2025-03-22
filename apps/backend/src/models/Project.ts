@@ -1,9 +1,12 @@
-import mongoose, { Document, Schema } from 'mongoose';
-import { Project as ProjectType } from '@juniorhub/types';
-import User from './User';
+import mongoose, { Document, Schema } from "mongoose";
+import { Project as ProjectType } from "@juniorhub/types";
+import User from "./User";
 
 // Define MongoDB schema-specific types (replacing string IDs with ObjectIds)
-type MongooseProject = Omit<ProjectType, 'id' | 'company' | 'applications' | 'selectedDeveloper'> & {
+type MongooseProject = Omit<
+  ProjectType,
+  "id" | "company" | "applications" | "selectedDeveloper"
+> & {
   company: mongoose.Types.ObjectId;
   applications?: mongoose.Types.ObjectId[];
   selectedDeveloper?: mongoose.Types.ObjectId;
@@ -17,25 +20,28 @@ const ProjectSchema = new Schema<ProjectDocument>(
   {
     title: {
       type: String,
-      required: [true, 'Title is required'],
+      required: [true, "Title is required"],
       trim: true,
     },
     description: {
       type: String,
-      required: [true, 'Description is required'],
+      required: [true, "Description is required"],
     },
     company: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
-      required: [true, 'Company is required'],
+      ref: "User",
+      required: [true, "Company is required"],
       validate: {
-        validator: async function(this: ProjectDocument, value: mongoose.Types.ObjectId) {
+        validator: async function (
+          this: ProjectDocument,
+          value: mongoose.Types.ObjectId
+        ) {
           // Ensure the company is a company user
           const company = await User.findById(value);
-          return company?.role === 'company' || company?.role === 'admin';
+          return company?.role === "company" || company?.role === "admin";
         },
-        message: 'Only company users can own projects'
-      }
+        message: "Only company users can own projects",
+      },
     },
     requirements: {
       type: [String],
@@ -44,23 +50,23 @@ const ProjectSchema = new Schema<ProjectDocument>(
     timeframe: {
       startDate: {
         type: Date,
-        required: [true, 'Start date is required'],
+        required: [true, "Start date is required"],
       },
       endDate: {
         type: Date,
-        required: [true, 'End date is required'],
+        required: [true, "End date is required"],
         validate: {
-          validator: function(this: ProjectDocument, value: Date) {
+          validator: function (this: ProjectDocument, value: Date) {
             return value > this.timeframe.startDate;
           },
-          message: 'End date must be after start date',
+          message: "End date must be after start date",
         },
       },
     },
     status: {
       type: String,
-      enum: ['open', 'in-progress', 'completed', 'canceled'],
-      default: 'open',
+      enum: ["open", "in-progress", "completed", "canceled"],
+      default: "open",
     },
     skillsRequired: {
       type: [String],
@@ -69,21 +75,24 @@ const ProjectSchema = new Schema<ProjectDocument>(
     applications: [
       {
         type: mongoose.Schema.Types.ObjectId,
-        ref: 'Application',
+        ref: "Application",
       },
     ],
     selectedDeveloper: {
       type: mongoose.Schema.Types.ObjectId,
-      ref: 'User',
+      ref: "User",
       validate: {
-        validator: async function(this: ProjectDocument, value: mongoose.Types.ObjectId) {
+        validator: async function (
+          this: ProjectDocument,
+          value: mongoose.Types.ObjectId
+        ) {
           if (!value) return true; // Allow null/undefined
           // Ensure the selected developer is a junior user
           const developer = await User.findById(value);
-          return developer?.role === 'junior';
+          return developer?.role === "junior";
         },
-        message: 'Only junior users can be selected as developers'
-      }
+        message: "Only junior users can be selected as developers",
+      },
     },
     tags: {
       type: [String],
@@ -97,6 +106,10 @@ const ProjectSchema = new Schema<ProjectDocument>(
       type: Boolean,
       default: true,
     },
+    images: {
+      type: [String],
+      default: [],
+    },
   },
   {
     timestamps: true, // Automatically add createdAt and updatedAt
@@ -104,10 +117,15 @@ const ProjectSchema = new Schema<ProjectDocument>(
 );
 
 // Create index for search functionality
-ProjectSchema.index({ title: 'text', description: 'text', tags: 'text', skillsRequired: 'text' });
+ProjectSchema.index({
+  title: "text",
+  description: "text",
+  tags: "text",
+  skillsRequired: "text",
+});
 
 // Adding a virtual field for calculating application count
-ProjectSchema.virtual('applicationCount').get(function(this: ProjectDocument) {
+ProjectSchema.virtual("applicationCount").get(function (this: ProjectDocument) {
   return this.applications ? this.applications.length : 0;
 });
 
@@ -116,6 +134,6 @@ ProjectSchema.virtual('applicationCount').get(function(this: ProjectDocument) {
 //   return this.status === 'open' && new Date() < this.timeframe.endDate;
 // };
 
-const Project = mongoose.model<ProjectDocument>('Project', ProjectSchema);
+const Project = mongoose.model<ProjectDocument>("Project", ProjectSchema);
 
-export default Project; 
+export default Project;
