@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useFormik } from "formik";
@@ -15,6 +15,7 @@ const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, getAuthHeaders } = useAuth();
+  const applicationFormRef = useRef<HTMLDivElement>(null);
 
   const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -255,7 +256,15 @@ const ProjectDetail = () => {
           )}
           {user && user.role === "junior" && isProjectOpen && !hasApplied && (
             <button
-              onClick={() => setShowApplyForm(true)}
+              onClick={() => {
+                setShowApplyForm(true);
+                // Wait for the form to render, then scroll to it
+                setTimeout(() => {
+                  applicationFormRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                  });
+                }, 100);
+              }}
               className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition"
             >
               Apply for Project
@@ -317,7 +326,10 @@ const ProjectDetail = () => {
 
           {/* Application form */}
           {showApplyForm && (
-            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <div
+              ref={applicationFormRef}
+              className="bg-white p-6 rounded-lg shadow-md mb-8"
+            >
               <h2 className="text-xl font-semibold mb-4">
                 Apply for this Project
               </h2>
