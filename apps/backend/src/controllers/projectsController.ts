@@ -73,8 +73,11 @@ export const getProjects = async (
 
       // Check if user has liked this project
       if (req.user) {
+        // Try both id and userId for backward compatibility
+        const userIdToCheck = req.user.id || req.user.userId;
+
         projectObj.hasLiked =
-          project.userLikes?.some((id) => id.toString() === req.user?.id) ||
+          project.userLikes?.some((id) => id.toString() === userIdToCheck) ||
           false;
       } else {
         projectObj.hasLiked = false;
@@ -140,9 +143,27 @@ export const getProjectById = async (
     // Check if user has liked this project (if authenticated)
     let hasLiked = false;
     if (req.user) {
+      console.log("User authenticated, checking likes");
+      console.log("req.user:", JSON.stringify(req.user, null, 2));
+      console.log(
+        "project.userLikes:",
+        JSON.stringify(project.userLikes, null, 2)
+      );
+
+      // Try both id and userId for backward compatibility
+      const userIdToCheck = req.user.id || req.user.userId;
+
       hasLiked =
-        project.userLikes?.some((id) => id.toString() === req.user?.id) ||
-        false;
+        project.userLikes?.some((id) => {
+          const idString = id.toString();
+          const match = idString === userIdToCheck;
+          console.log(
+            `Comparing ${idString} with ${userIdToCheck}, match: ${match}`
+          );
+          return match;
+        }) || false;
+
+      console.log("Final hasLiked value:", hasLiked);
     }
 
     res.status(200).json({
@@ -640,7 +661,8 @@ export const applyToProject = async (
  */
 export const toggleLike = async (req: Request, res: Response) => {
   try {
-    const userId = req.user?.id;
+    // Try both id and userId for backward compatibility
+    const userId = req.user?.id || req.user?.userId;
     const projectId = req.params.id;
 
     if (!userId) {
@@ -667,9 +689,14 @@ export const toggleLike = async (req: Request, res: Response) => {
     }
 
     // Check if user has already liked this project
-    const userHasLiked = project.userLikes?.some(
-      (id) => id.toString() === userId
-    );
+    const userHasLiked = project.userLikes?.some((id) => {
+      const idString = id.toString();
+      const match = idString === userId;
+      console.log(`Comparing ${idString} with ${userId}, match: ${match}`);
+      return match;
+    });
+
+    console.log("User has liked:", userHasLiked);
 
     if (userHasLiked) {
       // User has already liked the project, so unlike it
@@ -698,6 +725,15 @@ export const toggleLike = async (req: Request, res: Response) => {
     }
 
     await Promise.all([project.save(), user.save()]);
+
+    console.log(
+      "After save, project.userLikes:",
+      JSON.stringify(project.userLikes, null, 2)
+    );
+    console.log("Response:", {
+      likes: project.likes,
+      userHasLiked: !userHasLiked,
+    });
 
     res.status(200).json({
       success: true,

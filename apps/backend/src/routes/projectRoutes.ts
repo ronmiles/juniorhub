@@ -15,6 +15,7 @@ import {
   authorize,
   companyOnly,
   juniorOnly,
+  optionalAuthenticate,
 } from "../middleware/auth";
 import {
   uploadProjectImages,
@@ -94,7 +95,7 @@ const router = express.Router();
  *                         limit:
  *                           type: integer
  */
-router.get("/", getProjects);
+router.get("/", optionalAuthenticate, getProjects);
 
 /**
  * @swagger
@@ -125,7 +126,7 @@ router.get("/", getProjects);
  *                     project:
  *                       $ref: '#/components/schemas/Project'
  */
-router.get("/:id", getProjectById);
+router.get("/:id", optionalAuthenticate, getProjectById);
 
 /**
  * @swagger

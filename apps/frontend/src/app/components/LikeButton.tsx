@@ -1,4 +1,4 @@
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import axios from "axios";
 import { useAuth } from "../hooks/useAuth";
 import { FontAwesomeIcon } from "@fortawesome/react-fontawesome";
@@ -26,6 +26,15 @@ const LikeButton = ({
   const [hasLiked, setHasLiked] = useState<boolean>(initialUserHasLiked);
   const [isLoading, setIsLoading] = useState<boolean>(false);
   const [isAnimating, setIsAnimating] = useState<boolean>(false);
+  // Update state when initialUserHasLiked prop changes
+  useEffect(() => {
+    setHasLiked(initialUserHasLiked);
+  }, [initialUserHasLiked]);
+
+  // Update state when initialLikes prop changes
+  useEffect(() => {
+    setLikes(initialLikes);
+  }, [initialLikes]);
 
   const handleLike = async (e: React.MouseEvent<HTMLButtonElement>) => {
     e.preventDefault(); // Prevent navigation if used in cards with links

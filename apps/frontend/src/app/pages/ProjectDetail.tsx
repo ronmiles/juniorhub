@@ -1,9 +1,9 @@
 import { useState, useEffect } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
-import { useAuth } from "../hooks/useAuth";
 import axios from "axios";
 import { useFormik } from "formik";
 import * as Yup from "yup";
+import { useAuth } from "../hooks/useAuth";
 import { getFullImageUrl } from "../utils/imageUtils";
 import LikeButton from "../components/LikeButton";
 
@@ -12,8 +12,8 @@ const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
 
 const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
-  const { user } = useAuth();
   const navigate = useNavigate();
+  const { user, getAuthHeaders } = useAuth();
 
   const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -31,9 +31,13 @@ const ProjectDetail = () => {
       setError(null);
 
       try {
+        // Get auth headers
+        const headers = getAuthHeaders();
+        
         // Fetch project
         const projectResponse = await axios.get(`${API_URL}/projects/${id}`, {
           withCredentials: true,
+          headers,
         });
 
         if (projectResponse.data.success) {
@@ -62,7 +66,10 @@ const ProjectDetail = () => {
             try {
               const applicationsResponse = await axios.get(
                 `${API_URL}/projects/${id}/applications`,
-                { withCredentials: true }
+                {
+                  withCredentials: true,
+                  headers,
+                }
               );
               if (applicationsResponse.data.success) {
                 setApplications(applicationsResponse.data.data.applications);

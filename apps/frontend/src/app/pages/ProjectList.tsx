@@ -18,7 +18,7 @@ const STATUS_OPTIONS = [
 ];
 
 const ProjectList = () => {
-  const { user } = useAuth();
+  const { user, getAuthHeaders } = useAuth();
   const [projects, setProjects] = useState([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -36,7 +36,7 @@ const ProjectList = () => {
   const [total, setTotal] = useState(0);
   const [totalPages, setTotalPages] = useState(1);
 
-  // Fetch projects with filters
+  // Fetch projects on mount and when filters change
   useEffect(() => {
     const fetchProjects = async () => {
       setIsLoading(true);
@@ -53,9 +53,15 @@ const ProjectList = () => {
         params.append("sort", sortBy);
         params.append("order", sortOrder);
 
+        // Get auth headers
+        const headers = getAuthHeaders();
+        
         // Fetch projects
         const response = await axios.get(
-          `${API_URL}/projects?${params.toString()}`
+          `${API_URL}/projects?${params.toString()}`,
+          {
+            headers,
+          }
         );
 
         if (response.data.success) {
