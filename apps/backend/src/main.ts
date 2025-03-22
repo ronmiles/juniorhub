@@ -25,6 +25,7 @@ import userRoutes from "./routes/userRoutes";
 import applicationRoutes from "./routes/applicationRoutes";
 import notificationRoutes from "./routes/notificationRoutes";
 import aiRoutes from "./routes/aiRoutes";
+import commentRoutes from "./routes/commentRoutes";
 
 // Connect to MongoDB
 connectDB();
@@ -98,6 +99,7 @@ app.use("/api/users", userRoutes);
 app.use("/api/applications", applicationRoutes);
 app.use("/api/notifications", notificationRoutes);
 app.use("/api/ai", aiRoutes);
+app.use("/api", commentRoutes);
 
 // Health check route
 app.get("/health", (req, res) => {

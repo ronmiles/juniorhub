@@ -1,11 +1,11 @@
-version: '3.8'
+version: "3.8"
 
 services:
   # MongoDB service
   mongodb:
     image: mongo:latest
     container_name: juniorhub-mongodb
-    restart: always
+    restart: unless-stopped
     ports:
       - "27017:27017"
     volumes:
@@ -13,6 +13,12 @@ services:
     environment:
       - MONGO_INITDB_ROOT_USERNAME=root
       - MONGO_INITDB_ROOT_PASSWORD=rootpassword
+    healthcheck:
+      test: echo 'db.runCommand("ping").ok' | mongosh mongodb:27017/test --quiet
+      interval: 10s
+      timeout: 5s
+      retries: 3
+      start_period: 40s
     networks:
       - juniorhub-network
 
@@ -20,7 +26,7 @@ services:
   mongo-express:
     image: mongo-express:latest
     container_name: juniorhub-mongo-express
-    restart: always
+    restart: unless-stopped
     ports:
       - "8081:8081"
     environment:
@@ -28,7 +34,8 @@ services:
       - ME_CONFIG_MONGODB_ADMINPASSWORD=rootpassword
       - ME_CONFIG_MONGODB_SERVER=mongodb
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - juniorhub-network
 
@@ -37,27 +44,50 @@ services:
     build:
       context: .
       dockerfile: apps/backend/Dockerfile
+      platforms:
+        - linux/amd64
     container_name: juniorhub-backend
-    restart: always
+    restart: unless-stopped
     ports:
       - "3000:3000"
     environment:
-      - NODE_ENV=development
+      - NODE_ENV=production
       - MONGO_URI=mongodb://root:rootpassword@mongodb:27017/juniorhub?authSource=admin
       - JWT_SECRET=juniorhub_secret_key_change_in_production
       - JWT_EXPIRES_IN=1h
       - JWT_REFRESH_SECRET=juniorhub_refresh_secret_key_change_in_production
       - JWT_REFRESH_EXPIRES_IN=7d
       - CLIENT_URL=http://localhost:4200
+      - API_URL=http://localhost:3000
+
     depends_on:
-      - mongodb
+      mongodb:
+        condition: service_healthy
     networks:
       - juniorhub-network
+    mem_limit: 2g
+
+  # Frontend service
+  frontend:
+    build:
+      context: .
+      dockerfile: apps/frontend/Dockerfile
+      platforms:
+        - linux/amd64
+    container_name: juniorhub-frontend
+    restart: unless-stopped
+    ports:
+      - "4200:80"
+    depends_on:
+      - backend
+    networks:
+      - juniorhub-network
+    mem_limit: 2g
 
 volumes:
   mongodb_data:
-  node_modules:
+    driver: local
 
 networks:
   juniorhub-network:
-    driver: bridge 
+    driver: bridge

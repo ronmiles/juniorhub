@@ -1,4 +1,4 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useRef } from "react";
 import { useParams, Link, useNavigate } from "react-router-dom";
 import axios from "axios";
 import { useFormik } from "formik";
@@ -6,6 +6,7 @@ import * as Yup from "yup";
 import { useAuth } from "../hooks/useAuth";
 import { getFullImageUrl } from "../utils/imageUtils";
 import LikeButton from "../components/LikeButton";
+import CommentsSection from "../components/CommentsSection";
 
 // API base URL
 const API_URL = import.meta.env.VITE_API_URL || "http://localhost:3000/api";
@@ -14,6 +15,7 @@ const ProjectDetail = () => {
   const { id } = useParams<{ id: string }>();
   const navigate = useNavigate();
   const { user, getAuthHeaders } = useAuth();
+  const applicationFormRef = useRef<HTMLDivElement>(null);
 
   const [project, setProject] = useState<any>(null);
   const [isLoading, setIsLoading] = useState<boolean>(true);
@@ -254,7 +256,15 @@ const ProjectDetail = () => {
           )}
           {user && user.role === "junior" && isProjectOpen && !hasApplied && (
             <button
-              onClick={() => setShowApplyForm(true)}
+              onClick={() => {
+                setShowApplyForm(true);
+                // Wait for the form to render, then scroll to it
+                setTimeout(() => {
+                  applicationFormRef.current?.scrollIntoView({
+                    behavior: "smooth",
+                  });
+                }, 100);
+              }}
               className="px-4 py-2 bg-rose-500 text-white rounded-md hover:bg-rose-600 transition"
             >
               Apply for Project
@@ -316,7 +326,10 @@ const ProjectDetail = () => {
 
           {/* Application form */}
           {showApplyForm && (
-            <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <div
+              ref={applicationFormRef}
+              className="bg-white p-6 rounded-lg shadow-md mb-8"
+            >
               <h2 className="text-xl font-semibold mb-4">
                 Apply for this Project
               </h2>
@@ -458,7 +471,7 @@ const ProjectDetail = () => {
                     </div>
                     <div className="mt-3">
                       <Link
-                        to={`/applications/${application.id}`}
+                        to={`/applications/${application._id}`}
                         className="text-rose-500 hover:text-rose-700 text-sm font-medium"
                       >
                         View Application →
@@ -469,6 +482,11 @@ const ProjectDetail = () => {
               </div>
             </div>
           )}
+
+          {/* Comments Section */}
+          <div className="bg-white p-6 rounded-lg shadow-md mb-8">
+            <CommentsSection projectId={project._id || project.id} />
+          </div>
         </div>
 
         {/* Sidebar */}
