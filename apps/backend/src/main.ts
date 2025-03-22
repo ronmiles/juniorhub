@@ -38,10 +38,7 @@ initSocketServer(server);
 
 // Middleware
 app.use(
-  cors({
-    origin: config.clientUrl,
-    credentials: true,
-  })
+  cors()
 );
 app.use(morgan("dev"));
 app.use(json());
