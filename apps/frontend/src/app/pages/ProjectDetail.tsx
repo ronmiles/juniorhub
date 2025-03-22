@@ -459,7 +459,7 @@ const ProjectDetail = () => {
                     </div>
                     <div className="mt-3">
                       <Link
-                        to={`/applications/${application.id}`}
+                        to={`/applications/${application._id}`}
                         className="text-rose-500 hover:text-rose-700 text-sm font-medium"
                       >
                         View Application →
