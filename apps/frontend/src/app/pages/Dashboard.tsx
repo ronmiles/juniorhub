@@ -227,7 +227,7 @@ const Dashboard = () => {
                   <div className="flex justify-between items-start">
                     <div>
                       <Link
-                        to={`/projects/${application.project.id}`}
+                        to={`/projects/${application.project._id}`}
                         className="text-lg font-medium text-rose-500 hover:text-rose-700"
                       >
                         {application.project.title}

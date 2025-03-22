@@ -418,7 +418,7 @@ router.post(
       .notEmpty()
       .withMessage("Cover letter is required"),
     body("submissionLink")
-      .optional()
+      .optional({ nullable: true })
       .isURL()
       .withMessage("Submission link must be a valid URL"),
   ],
