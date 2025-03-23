@@ -222,7 +222,7 @@ const Dashboard = () => {
             </div>
           ) : (
             <div className="divide-y divide-gray-200">
-              {applications.map((application: any) => (
+              {applications.filter((application: any) => {return !application.project.title.includes("Mock")}).map((application: any) => (
                 <div key={application.id} className="py-4">
                   <div className="flex justify-between items-start">
                     <div>

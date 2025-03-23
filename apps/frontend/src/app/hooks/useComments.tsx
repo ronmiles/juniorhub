@@ -26,7 +26,7 @@ export const useComments = (projectId: string): CommentsHookResult => {
   // Initialize socket connection
   useEffect(() => {
     const SOCKET_URL =
-      import.meta.env.VITE_SOCKET_URL || "http://localhost:3000";
+      import.meta.env.VITE_SOCKET_URL || "http://node58.cs.colman.ac.il";
     const newSocket = io(SOCKET_URL);
     setSocket(newSocket);
 
