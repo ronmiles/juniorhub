@@ -13,13 +13,27 @@ import "./config/passport"; // Import passport config to initialize strategies
 
 // Import routes with their Swagger paths
 import authRoutes, { authPaths } from "./routes/auth/authRoutes";
-import googleAuthRoutes, { googleAuthPaths } from "./routes/auth/googleAuthRoutes";
-import projectRoutes, { projectPaths, projectComponents } from "./routes/projectRoutes";
+import googleAuthRoutes, {
+  googleAuthPaths,
+} from "./routes/auth/googleAuthRoutes";
+import projectRoutes, {
+  projectPaths,
+  projectComponents,
+} from "./routes/projectRoutes";
 import userRoutes, { userPaths, userComponents } from "./routes/userRoutes";
-import applicationRoutes, { applicationPaths, applicationComponents } from "./routes/applicationRoutes";
-import notificationRoutes, { notificationPaths, notificationComponents } from "./routes/notificationRoutes";
+import applicationRoutes, {
+  applicationPaths,
+  applicationComponents,
+} from "./routes/applicationRoutes";
+import notificationRoutes, {
+  notificationPaths,
+  notificationComponents,
+} from "./routes/notificationRoutes";
 import aiRoutes, { aiPaths } from "./routes/aiRoutes";
-import commentRoutes, { commentPaths, commentComponents } from "./routes/commentRoutes";
+import commentRoutes, {
+  commentPaths,
+  commentComponents,
+} from "./routes/commentRoutes";
 
 connectDB();
 

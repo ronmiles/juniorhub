@@ -11,15 +11,6 @@ import {
 import { authenticate } from "../../middleware/auth";
 import { SwaggerPathsType } from "../../types/swagger";
 
-const router: Router = express.Router();
-
-/**
- * @swagger
- * tags:
- *   name: Authentication
- *   description: User authentication
- */
-
 export const authPaths: SwaggerPathsType = {
   "/api/auth/register": {
     post: {
@@ -151,38 +142,8 @@ export const authPaths: SwaggerPathsType = {
   },
 };
 
-/**
- * @swagger
- * /api/auth/register:
- *   post:
- *     summary: Register a new user
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *               - name
- *             properties:
- *               name:
- *                 type: string
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *                 format: password
- *     responses:
- *       201:
- *         description: User registered successfully
- *       400:
- *         description: Invalid input data
- *       409:
- *         description: User already exists
- */
+const router: Router = express.Router();
+
 router.post(
   "/register",
   [
@@ -195,44 +156,8 @@ router.post(
   register
 );
 
-router.post("/register/complete", completeRegister)
+router.post("/register/complete", completeRegister);
 
-/**
- * @swagger
- * /api/auth/login:
- *   post:
- *     summary: Login a user
- *     tags: [Authentication]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - email
- *               - password
- *             properties:
- *               email:
- *                 type: string
- *               password:
- *                 type: string
- *                 format: password
- *     responses:
- *       200:
- *         description: Login successful
- *         content:
- *           application/json:
- *             schema:
- *               type: object
- *               properties:
- *                 token:
- *                   type: string
- *                 user:
- *                   type: object
- *       401:
- *         description: Invalid credentials
- */
 router.post(
   "/login",
   [
@@ -242,61 +167,10 @@ router.post(
   login
 );
 
-/**
- * @swagger
- * /api/auth/refresh-token:
- *   post:
- *     summary: Refresh access token
- *     tags: [Auth]
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             required:
- *               - refreshToken
- *             properties:
- *               refreshToken:
- *                 type: string
- *     responses:
- *       200:
- *         description: New tokens generated
- *       400:
- *         description: Invalid refresh token
- */
 router.post("/refresh-token", refreshToken);
 
-/**
- * @swagger
- * /api/auth/logout:
- *   post:
- *     summary: Logout user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: Logout successful
- *       401:
- *         description: Unauthorized
- */
 router.post("/logout", authenticate, logout);
 
-/**
- * @swagger
- * /api/auth/me:
- *   get:
- *     summary: Get current user
- *     tags: [Auth]
- *     security:
- *       - bearerAuth: []
- *     responses:
- *       200:
- *         description: User details
- *       401:
- *         description: Unauthorized
- */
 router.get("/me", authenticate, getCurrentUser);
 
 export default router;
