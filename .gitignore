@@ -57,3 +57,4 @@ vitest.config.*.timestamp*
 # Uploaded files
 apps/backend/src/uploads/profiles/*
 !apps/backend/src/uploads/profiles/.gitkeep
+docker-compose.yml

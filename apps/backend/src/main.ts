@@ -44,7 +44,9 @@ const server = http.createServer(app);
 initSocketServer(server);
 
 // Middleware
-app.use(cors());
+app.use(
+  cors()
+);
 app.use(morgan("dev"));
 app.use(json());
 app.use(urlencoded({ extended: true }));
