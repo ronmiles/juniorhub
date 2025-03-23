@@ -10,6 +10,12 @@ WORKDIR /app
 COPY package.json package-lock.json* ./
 COPY nx.json tsconfig.base.json ./
 
+ARG VITE_API_URL
+ENV VITE_API_URL=${VITE_API_URL}
+
+ARG VITE_SOCKET_URL
+ENV VITE_SOCKET_URL=${VITE_SOCKET_URL}
+
 # Copy the entire workspace (needed for Nx)
 COPY . .
 

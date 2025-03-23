@@ -1,14 +1,8 @@
-/**
- * This is not a production server yet!
- * This is only a minimal backend to get started.
- */
-
 import express from "express";
 import cors from "cors";
 import morgan from "morgan";
 import { json, urlencoded } from "body-parser";
 import swaggerUi from "swagger-ui-express";
-import swaggerJsdoc from "swagger-jsdoc";
 import http from "http";
 import passport from "passport";
 import path from "path";
@@ -17,17 +11,30 @@ import config from "./config/config";
 import { initSocketServer } from "./utils/socket";
 import "./config/passport"; // Import passport config to initialize strategies
 
-// Import routes (we'll create these files next)
-import authRoutes from "./routes/auth/authRoutes";
-import googleAuthRoutes from "./routes/auth/googleAuthRoutes";
-import projectRoutes from "./routes/projectRoutes";
-import userRoutes from "./routes/userRoutes";
-import applicationRoutes from "./routes/applicationRoutes";
-import notificationRoutes from "./routes/notificationRoutes";
-import aiRoutes from "./routes/aiRoutes";
-import commentRoutes from "./routes/commentRoutes";
+// Import routes with their Swagger paths
+import authRoutes, { authPaths } from "./routes/auth/authRoutes";
+import googleAuthRoutes, {
+  googleAuthPaths,
+} from "./routes/auth/googleAuthRoutes";
+import projectRoutes, {
+  projectPaths,
+  projectComponents,
+} from "./routes/projectRoutes";
+import userRoutes, { userPaths, userComponents } from "./routes/userRoutes";
+import applicationRoutes, {
+  applicationPaths,
+  applicationComponents,
+} from "./routes/applicationRoutes";
+import notificationRoutes, {
+  notificationPaths,
+  notificationComponents,
+} from "./routes/notificationRoutes";
+import aiRoutes, { aiPaths } from "./routes/aiRoutes";
+import commentRoutes, {
+  commentPaths,
+  commentComponents,
+} from "./routes/commentRoutes";
 
-// Connect to MongoDB
 connectDB();
 
 const app = express();
@@ -52,41 +59,43 @@ const uploadsPath = path.join(__dirname, "..", "uploads");
 app.use("/api/uploads", express.static(uploadsPath));
 console.log("Serving static files from:", uploadsPath);
 
-// Swagger documentation setup
-const swaggerOptions = {
-  definition: {
-    openapi: "3.0.0",
-    info: {
-      title: "JuniorHub API",
-      version: "1.0.0",
-      description: "API for connecting junior developers with companies",
-    },
-    servers: [
-      {
-        url: `http://localhost:${config.port}`,
-        description: "Development server",
-      },
-    ],
-    components: {
-      securitySchemes: {
-        bearerAuth: {
-          type: "http",
-          scheme: "bearer",
-          bearerFormat: "JWT",
-        },
-      },
-    },
-    security: [
-      {
-        bearerAuth: [],
-      },
-    ],
+// Define your Swagger document with imported paths
+const swaggerDocument = {
+  openapi: "3.0.0",
+  info: {
+    title: "JuniorHub API Documentation",
+    version: "1.0.0",
+    description:
+      "API documentation for connecting junior developers with companies",
   },
-  apis: ["./src/routes/*.ts"], // Path to the API routes
+  servers: [
+    {
+      url: "/api",
+      description: "API Server",
+    },
+  ],
+  // Combine all paths from different route files
+  paths: {
+    ...authPaths,
+    ...googleAuthPaths,
+    ...projectPaths,
+    ...userPaths,
+    ...applicationPaths,
+    ...notificationPaths,
+    ...aiPaths,
+    ...commentPaths,
+  },
+  // Combine all components
+  components: {
+    ...projectComponents,
+    ...userComponents,
+    ...applicationComponents,
+    ...notificationComponents,
+    ...commentComponents,
+  },
 };
 
-const swaggerDocs = swaggerJsdoc(swaggerOptions);
-app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocs));
+app.use("/api-docs", swaggerUi.serve, swaggerUi.setup(swaggerDocument));
 
 // Routes
 app.use("/api/auth", authRoutes);
@@ -116,4 +125,7 @@ app.use((err, req, res, next) => {
 const port = config.port;
 server.listen(port, () => {
   console.log(`Server running on port ${port}`);
+  console.log(
+    `Swagger documentation available at http://localhost:${port}/api-docs`
+  );
 });

@@ -15,132 +15,423 @@ import {
   uploadProfilePicture as uploadMiddleware,
   handleUploadError,
 } from "../middleware/uploadMiddleware";
+import { SwaggerPathsType } from "../types/swagger";
+
+export const userPaths: SwaggerPathsType = {
+  "/api/users": {
+    get: {
+      summary: "Get all users (admin only)",
+      tags: ["Users"],
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: "query",
+          name: "role",
+          schema: {
+            type: "string",
+            enum: ["junior", "company", "admin"],
+          },
+          description: "Filter by user role",
+        },
+        {
+          in: "query",
+          name: "search",
+          schema: {
+            type: "string",
+          },
+          description: "Search by name or email",
+        },
+        {
+          in: "query",
+          name: "page",
+          schema: {
+            type: "integer",
+            default: 1,
+          },
+          description: "Page number",
+        },
+        {
+          in: "query",
+          name: "limit",
+          schema: {
+            type: "integer",
+            default: 10,
+          },
+          description: "Items per page",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "List of users",
+        },
+        "401": {
+          description: "Not authenticated",
+        },
+        "403": {
+          description: "Not authorized",
+        },
+        "500": {
+          description: "Server error",
+        },
+      },
+    },
+  },
+  "/api/users/{id}": {
+    get: {
+      summary: "Get user by ID",
+      tags: ["Users"],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "User details",
+          content: {
+            "application/json": {
+              schema: {
+                $ref: "#/components/schemas/User",
+              },
+            },
+          },
+        },
+        "404": {
+          description: "User not found",
+        },
+      },
+    },
+    put: {
+      summary: "Update user",
+      tags: ["Users"],
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+          description: "User ID",
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                name: {
+                  type: "string",
+                },
+                bio: {
+                  type: "string",
+                },
+                skills: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                  description: "List of skills (max 10)",
+                },
+                profilePicture: {
+                  type: "string",
+                },
+                experienceLevel: {
+                  type: "string",
+                  enum: ["beginner", "intermediate", "advanced"],
+                  description: "User's experience level (junior only)",
+                },
+                portfolio: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                  description: "List of portfolio links (max 5, junior only)",
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "User updated successfully",
+        },
+        "400": {
+          description: "Validation error",
+        },
+        "401": {
+          description: "Not authenticated",
+        },
+        "403": {
+          description: "Not authorized",
+        },
+        "404": {
+          description: "User not found",
+        },
+        "500": {
+          description: "Server error",
+        },
+      },
+    },
+    delete: {
+      summary: "Delete user (admin only)",
+      tags: ["Users"],
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+          description: "User ID",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "User deleted successfully",
+        },
+        "401": {
+          description: "Not authenticated",
+        },
+        "403": {
+          description: "Not authorized",
+        },
+        "404": {
+          description: "User not found",
+        },
+        "500": {
+          description: "Server error",
+        },
+      },
+    },
+  },
+  "/api/users/{id}/projects": {
+    get: {
+      summary: "Get user's projects",
+      tags: ["Users"],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+          description: "User ID",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "List of user's projects",
+        },
+        "404": {
+          description: "User not found",
+        },
+        "500": {
+          description: "Server error",
+        },
+      },
+    },
+  },
+  "/api/users/{id}/applications": {
+    get: {
+      summary: "Get user's applications",
+      tags: ["Users"],
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+          description: "User ID",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "List of user's applications",
+        },
+        "401": {
+          description: "Not authenticated",
+        },
+        "403": {
+          description: "Not authorized",
+        },
+        "404": {
+          description: "User not found",
+        },
+        "500": {
+          description: "Server error",
+        },
+      },
+    },
+  },
+  "/api/users/{id}/profile-picture": {
+    post: {
+      summary: "Upload profile picture",
+      tags: ["Users"],
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+          description: "User ID",
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "multipart/form-data": {
+            schema: {
+              type: "object",
+              properties: {
+                profilePicture: {
+                  type: "string",
+                  format: "binary",
+                  description: "Profile picture (JPEG, PNG, or WebP, max 5MB)",
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Profile picture uploaded successfully",
+        },
+        "400": {
+          description: "Validation error or file error",
+        },
+        "401": {
+          description: "Not authenticated",
+        },
+        "403": {
+          description: "Not authorized",
+        },
+        "404": {
+          description: "User not found",
+        },
+        "500": {
+          description: "Server error",
+        },
+      },
+    },
+    delete: {
+      summary: "Delete profile picture",
+      tags: ["Users"],
+      security: [
+        {
+          bearerAuth: [],
+        },
+      ],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+          description: "User ID",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Profile picture removed successfully",
+        },
+        "401": {
+          description: "Not authenticated",
+        },
+        "403": {
+          description: "Not authorized",
+        },
+        "404": {
+          description: "User not found",
+        },
+        "500": {
+          description: "Server error",
+        },
+      },
+    },
+  },
+};
+
+export const userComponents = {
+  schemas: {
+    User: {
+      type: "object",
+      properties: {
+        id: {
+          type: "string",
+        },
+        name: {
+          type: "string",
+        },
+        email: {
+          type: "string",
+        },
+        bio: {
+          type: "string",
+        },
+        skills: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        avatar: {
+          type: "string",
+        },
+        createdAt: {
+          type: "string",
+          format: "date-time",
+        },
+      },
+    },
+  },
+};
 
 const router = express.Router();
 
-/**
- * @swagger
- * /api/users:
- *   get:
- *     summary: Get all users (admin only)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: query
- *         name: role
- *         schema:
- *           type: string
- *           enum: [junior, company, admin]
- *         description: Filter by user role
- *       - in: query
- *         name: search
- *         schema:
- *           type: string
- *         description: Search by name or email
- *       - in: query
- *         name: page
- *         schema:
- *           type: integer
- *           default: 1
- *         description: Page number
- *       - in: query
- *         name: limit
- *         schema:
- *           type: integer
- *           default: 10
- *         description: Items per page
- *     responses:
- *       200:
- *         description: List of users
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       500:
- *         description: Server error
- */
 router.get("/", authenticate, authorize(["admin"]), getUsers);
-
-/**
- * @swagger
- * /api/users/{id}:
- *   get:
- *     summary: Get user by ID
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: User details
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
- */
 router.get("/:id", getUserById);
-
-/**
- * @swagger
- * /api/users/{id}:
- *   put:
- *     summary: Update user
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     requestBody:
- *       required: true
- *       content:
- *         application/json:
- *           schema:
- *             type: object
- *             properties:
- *               name:
- *                 type: string
- *               bio:
- *                 type: string
- *               skills:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: List of skills (max 10)
- *               profilePicture:
- *                 type: string
- *               experienceLevel:
- *                 type: string
- *                 enum: [beginner, intermediate, advanced]
- *                 description: User's experience level (junior only)
- *               portfolio:
- *                 type: array
- *                 items:
- *                   type: string
- *                 description: List of portfolio links (max 5, junior only)
- *     responses:
- *       200:
- *         description: User updated successfully
- *       400:
- *         description: Validation error
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
- */
 router.put(
   "/:id",
   authenticate,
@@ -217,133 +508,14 @@ router.put(
   ],
   updateUser
 );
-
-/**
- * @swagger
- * /api/users/{id}:
- *   delete:
- *     summary: Delete user (admin only)
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: User deleted successfully
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
- */
 router.delete("/:id", authenticate, authorize(["admin"]), deleteUser);
-
-/**
- * @swagger
- * /api/users/{id}/projects:
- *   get:
- *     summary: Get user's projects
- *     tags: [Users]
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: List of user's projects
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
- */
 router.get("/:id/projects", getUserProjects);
-
-/**
- * @swagger
- * /api/users/{id}/applications:
- *   get:
- *     summary: Get user's applications
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: List of user's applications
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
- */
 router.get(
   "/:id/applications",
   authenticate,
   authorizeOwn,
   getUserApplications
 );
-
-/**
- * @swagger
- * /api/users/{id}/profile-picture:
- *   post:
- *     summary: Upload profile picture
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     requestBody:
- *       required: true
- *       content:
- *         multipart/form-data:
- *           schema:
- *             type: object
- *             properties:
- *               profilePicture:
- *                 type: string
- *                 format: binary
- *                 description: Profile picture (JPEG, PNG, or WebP, max 5MB)
- *     responses:
- *       200:
- *         description: Profile picture uploaded successfully
- *       400:
- *         description: Validation error or file error
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
- */
 router.post(
   "/:id/profile-picture",
   authenticate,
@@ -352,34 +524,6 @@ router.post(
   handleUploadError,
   uploadProfilePicture
 );
-
-/**
- * @swagger
- * /api/users/{id}/profile-picture:
- *   delete:
- *     summary: Delete profile picture
- *     tags: [Users]
- *     security:
- *       - bearerAuth: []
- *     parameters:
- *       - in: path
- *         name: id
- *         required: true
- *         schema:
- *           type: string
- *         description: User ID
- *     responses:
- *       200:
- *         description: Profile picture removed successfully
- *       401:
- *         description: Not authenticated
- *       403:
- *         description: Not authorized
- *       404:
- *         description: User not found
- *       500:
- *         description: Server error
- */
 router.delete(
   "/:id/profile-picture",
   authenticate,

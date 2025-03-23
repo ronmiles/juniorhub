@@ -17,9 +17,6 @@ ENV NODE_ENV=production
 # Install dependencies first (for better caching)
 RUN npm install --prefer-offline --no-audit --force
 
-# Force rebuild of bcrypt to ensure architecture compatibility
-RUN npm rebuild bcrypt --build-from-source
-
 # Copy the entire workspace (needed for Nx)
 COPY . .
 
@@ -27,22 +24,9 @@ COPY . .
 RUN npx nx build backend --skip-nx-cache && \
     npm prune --production
 
-# Create a non-root user
-RUN addgroup --system --gid 1001 nodejs && \
-    adduser --system --uid 1001 nodejsuser && \
-    chown -R nodejsuser:nodejs /app/dist && \
-    chown -R nodejsuser:nodejs /app/node_modules
-
-# Set proper permissions
-RUN chmod -R 755 /app/dist
-RUN chmod -R 755 /app/node_modules
-
-# Switch to non-root user
-USER nodejsuser
-
 # Health check
 HEALTHCHECK --interval=30s --timeout=5s --start-period=5s --retries=3 \
-    CMD wget -qO- http://localhost:3000/api/health || exit 1
+    CMD wget -qO- http://localhost:3000/health || exit 1
 
 # Expose port
 EXPOSE 3000
