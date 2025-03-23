@@ -9,15 +9,154 @@ import {
   completeRegister,
 } from "../../controllers/auth/authController";
 import { authenticate } from "../../middleware/auth";
+import { SwaggerPathsType } from "../../types/swagger";
 
 const router: Router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Authentication
+ *   description: User authentication
+ */
+
+export const authPaths: SwaggerPathsType = {
+  "/api/auth/register": {
+    post: {
+      summary: "Register a new user",
+      tags: ["Authentication"],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["email", "password", "name"],
+              properties: {
+                name: {
+                  type: "string",
+                },
+                email: {
+                  type: "string",
+                },
+                password: {
+                  type: "string",
+                  format: "password",
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description: "User registered successfully",
+        },
+        "400": {
+          description: "Invalid input data",
+        },
+        "409": {
+          description: "User already exists",
+        },
+      },
+    },
+  },
+  "/api/auth/login": {
+    post: {
+      summary: "Login a user",
+      tags: ["Authentication"],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["email", "password"],
+              properties: {
+                email: {
+                  type: "string",
+                },
+                password: {
+                  type: "string",
+                  format: "password",
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Login successful",
+          content: {
+            "application/json": {
+              schema: {
+                type: "object",
+                properties: {
+                  token: {
+                    type: "string",
+                  },
+                  user: {
+                    type: "object",
+                  },
+                },
+              },
+            },
+          },
+        },
+        "401": {
+          description: "Invalid credentials",
+        },
+      },
+    },
+  },
+  "/api/auth/refresh-token": {
+    post: {
+      summary: "Refresh authentication token",
+      tags: ["Authentication"],
+      responses: {
+        "200": {
+          description: "Token refreshed successfully",
+        },
+        "401": {
+          description: "Invalid or expired token",
+        },
+      },
+    },
+  },
+  "/api/auth/logout": {
+    post: {
+      summary: "Logout user",
+      tags: ["Authentication"],
+      responses: {
+        "200": {
+          description: "Logout successful",
+        },
+      },
+    },
+  },
+  "/api/auth/me": {
+    get: {
+      summary: "Get current user",
+      tags: ["Authentication"],
+      responses: {
+        "200": {
+          description: "User details",
+        },
+        "401": {
+          description: "Unauthorized",
+        },
+      },
+    },
+  },
+};
 
 /**
  * @swagger
  * /api/auth/register:
  *   post:
  *     summary: Register a new user
- *     tags: [Auth]
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -25,29 +164,24 @@ const router: Router = express.Router();
  *           schema:
  *             type: object
  *             required:
- *               - name
  *               - email
  *               - password
- *               - role
+ *               - name
  *             properties:
  *               name:
  *                 type: string
  *               email:
  *                 type: string
- *                 format: email
  *               password:
  *                 type: string
  *                 format: password
- *               role:
- *                 type: string
- *                 enum: [junior, company]
  *     responses:
  *       201:
- *         description: User created successfully
+ *         description: User registered successfully
  *       400:
- *         description: Validation error
+ *         description: Invalid input data
  *       409:
- *         description: Email already in use
+ *         description: User already exists
  */
 router.post(
   "/register",
@@ -67,8 +201,8 @@ router.post("/register/complete", completeRegister)
  * @swagger
  * /api/auth/login:
  *   post:
- *     summary: Login user
- *     tags: [Auth]
+ *     summary: Login a user
+ *     tags: [Authentication]
  *     requestBody:
  *       required: true
  *       content:
@@ -81,15 +215,21 @@ router.post("/register/complete", completeRegister)
  *             properties:
  *               email:
  *                 type: string
- *                 format: email
  *               password:
  *                 type: string
  *                 format: password
  *     responses:
  *       200:
  *         description: Login successful
- *       400:
- *         description: Validation error
+ *         content:
+ *           application/json:
+ *             schema:
+ *               type: object
+ *               properties:
+ *                 token:
+ *                   type: string
+ *                 user:
+ *                   type: object
  *       401:
  *         description: Invalid credentials
  */

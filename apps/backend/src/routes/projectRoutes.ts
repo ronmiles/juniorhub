@@ -21,8 +21,331 @@ import {
   uploadProjectImages,
   handleUploadError,
 } from "../middleware/uploadMiddleware";
+import { SwaggerPathsType } from "../types/swagger";
+
+// Export Swagger paths for projects
+export const projectPaths: SwaggerPathsType = {
+  "/api/projects": {
+    get: {
+      summary: "Get all projects",
+      tags: ["Projects"],
+      parameters: [
+        {
+          in: "query",
+          name: "search",
+          schema: {
+            type: "string",
+          },
+          description: "Search by title or description",
+        },
+        {
+          in: "query",
+          name: "skills",
+          schema: {
+            type: "array",
+            items: {
+              type: "string",
+            },
+          },
+          description: "Filter by skills (comma-separated)",
+        },
+        {
+          in: "query",
+          name: "page",
+          schema: {
+            type: "integer",
+            default: 1,
+          },
+          description: "Page number",
+        },
+        {
+          in: "query",
+          name: "limit",
+          schema: {
+            type: "integer",
+            default: 10,
+          },
+          description: "Items per page",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "List of projects",
+        },
+      },
+    },
+    post: {
+      summary: "Create a new project",
+      tags: ["Projects"],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              required: ["title", "description"],
+              properties: {
+                title: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                },
+                skills: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+                images: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "201": {
+          description: "Project created successfully",
+        },
+        "400": {
+          description: "Invalid input data",
+        },
+      },
+    },
+  },
+  "/api/projects/{id}": {
+    get: {
+      summary: "Get project by ID",
+      tags: ["Projects"],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Project details",
+        },
+        "404": {
+          description: "Project not found",
+        },
+      },
+    },
+    put: {
+      summary: "Update a project",
+      tags: ["Projects"],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+        },
+      ],
+      requestBody: {
+        required: true,
+        content: {
+          "application/json": {
+            schema: {
+              type: "object",
+              properties: {
+                title: {
+                  type: "string",
+                },
+                description: {
+                  type: "string",
+                },
+                skills: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+                images: {
+                  type: "array",
+                  items: {
+                    type: "string",
+                  },
+                },
+              },
+            },
+          },
+        },
+      },
+      responses: {
+        "200": {
+          description: "Project updated successfully",
+        },
+        "404": {
+          description: "Project not found",
+        },
+      },
+    },
+    delete: {
+      summary: "Delete a project",
+      tags: ["Projects"],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Project deleted successfully",
+        },
+        "404": {
+          description: "Project not found",
+        },
+      },
+    },
+  },
+  "/api/projects/{id}/applications": {
+    get: {
+      summary: "Get applications for a project",
+      tags: ["Projects"],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+        },
+      ],
+      responses: {
+        "200": {
+          description: "List of applications for the project",
+        },
+        "404": {
+          description: "Project not found",
+        },
+      },
+    },
+  },
+  "/api/projects/{id}/like": {
+    post: {
+      summary: "Toggle like on a project",
+      tags: ["Projects"],
+      parameters: [
+        {
+          in: "path",
+          name: "id",
+          required: true,
+          schema: {
+            type: "string",
+          },
+          description: "Project ID",
+        },
+      ],
+      responses: {
+        "200": {
+          description: "Like toggled successfully",
+        },
+        "404": {
+          description: "Project not found",
+        },
+      },
+    },
+  },
+};
+
+export const projectComponents = {
+  schemas: {
+    Project: {
+      type: "object",
+      required: ["title", "description"],
+      properties: {
+        id: {
+          type: "string",
+        },
+        title: {
+          type: "string",
+        },
+        description: {
+          type: "string",
+        },
+        skills: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        images: {
+          type: "array",
+          items: {
+            type: "string",
+          },
+        },
+        createdBy: {
+          type: "string",
+        },
+        createdAt: {
+          type: "string",
+          format: "date-time",
+        },
+        likes: {
+          type: "number",
+        },
+      },
+    },
+  },
+};
 
 const router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Projects
+ *   description: Project management
+ */
+
+/**
+ * @swagger
+ * components:
+ *   schemas:
+ *     Project:
+ *       type: object
+ *       required:
+ *         - title
+ *         - description
+ *       properties:
+ *         id:
+ *           type: string
+ *           description: Auto-generated project ID
+ *         title:
+ *           type: string
+ *         description:
+ *           type: string
+ *         skills:
+ *           type: array
+ *           items:
+ *             type: string
+ *         createdBy:
+ *           type: string
+ *           description: User ID of project creator
+ *         createdAt:
+ *           type: string
+ *           format: date-time
+ */
 
 /**
  * @swagger

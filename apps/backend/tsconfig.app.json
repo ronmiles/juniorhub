@@ -3,6 +3,11 @@
   "compilerOptions": {
     "outDir": "../../dist/out-tsc",
     "module": "commonjs",
+    "esModuleInterop": true,
+    "target": "es6",
+    "moduleResolution": "node",
+    "sourceMap": true,
+    "resolveJsonModule": true,
     "types": ["node", "express"]
   },
   "include": ["src/**/*.ts"]

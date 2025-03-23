@@ -6,8 +6,51 @@ import {
   googleCallback,
 } from "../../controllers/auth/googleAuthController";
 import { FRONTEND_URL, LOGIN_PATH } from "../../utils/constants";
+import { SwaggerPathsType } from "../../types/swagger";
+
+export const googleAuthPaths: SwaggerPathsType = {
+  "/api/auth/google": {
+    get: {
+      summary: "Initiate Google OAuth flow",
+      tags: ["Google Authentication"],
+      responses: {
+        "302": {
+          description: "Redirect to Google authentication",
+        },
+      },
+    },
+  },
+  "/api/auth/google/callback": {
+    get: {
+      summary: "Google OAuth callback",
+      tags: ["Google Authentication"],
+      parameters: [
+        {
+          in: "query",
+          name: "code",
+          schema: {
+            type: "string",
+          },
+          description: "OAuth code",
+        },
+      ],
+      responses: {
+        "302": {
+          description: "Redirect after successful authentication",
+        },
+      },
+    },
+  },
+};
 
 const router: Router = express.Router();
+
+/**
+ * @swagger
+ * tags:
+ *   name: Google Authentication
+ *   description: Google OAuth authentication
+ */
 
 /**
  * @swagger
@@ -86,7 +129,16 @@ router.post("/", googleAuth);
  */
 router.post("/complete-oauth-signup", completeOAuthSignup);
 
-// Google OAuth routes
+/**
+ * @swagger
+ * /api/auth/google:
+ *   get:
+ *     summary: Initiate Google OAuth flow
+ *     tags: [Google Authentication]
+ *     responses:
+ *       302:
+ *         description: Redirect to Google authentication
+ */
 router.get(
   "/",
   passport.authenticate("google", {
@@ -95,6 +147,22 @@ router.get(
   })
 );
 
+/**
+ * @swagger
+ * /api/auth/google/callback:
+ *   get:
+ *     summary: Google OAuth callback
+ *     tags: [Google Authentication]
+ *     parameters:
+ *       - in: query
+ *         name: code
+ *         schema:
+ *           type: string
+ *         description: OAuth code
+ *     responses:
+ *       302:
+ *         description: Redirect after successful authentication
+ */
 router.get(
   "/callback",
   passport.authenticate("google", {
